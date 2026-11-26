@@ -174,11 +174,11 @@ jobs:
             # Keep the "./" prefix: without it npm parses "npm-dist/x" as a
             # GitHub shorthand (owner/repo) instead of a local folder.
             npm publish "./npm-dist/${dir}" --access public
-            # npm finalizes publishes asynchronously; wait until the version
-            # is actually resolvable before moving to the next package.
-            for attempt in 1 2 3 4 5 6; do
+            # npm finalizes publishes asynchronously; wait (up to 3 min) until
+            # the version is actually resolvable before moving on.
+            for attempt in $(seq 1 12); do
               npm view "${pkg}@${ver}" version >/dev/null 2>&1 && break
-              sleep 10
+              sleep 15
             done
             if ! npm view "${pkg}@${ver}" version >/dev/null 2>&1; then
               echo "ERROR: ${pkg}@${ver} was not visible on npm after publishing." >&2
