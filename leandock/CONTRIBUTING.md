@@ -33,3 +33,7 @@ cargo test --all-targets
 2. Add or update automated tests in `tests/` covering any new edge cases.
 3. Document any new CLI flags or Compose labels in `README.md` and `docs/`.
 4. Open a Pull Request describing the exact mechanism, safety invariants, and tested platforms.
+
+## Cutting a Release (Maintainers)
+
+See [docs/PUBLISHING.md](docs/PUBLISHING.md) for the complete guide to configuring GitHub Releases, npm, PyPI, crates.io, Homebrew Tap, and Scoop Bucket.

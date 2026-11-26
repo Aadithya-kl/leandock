@@ -4,6 +4,18 @@ set -euo pipefail
 REPO="${LEANDOCK_REPO:-leandock/leandock}"
 INSTALL_DIR="${LEANDOCK_INSTALL_DIR:-/usr/local/bin}"
 VERSION="${LEANDOCK_VERSION:-latest}"
+INSTALL_DOCKER_PLUGIN=false
+
+for arg in "$@"; do
+  case "${arg}" in
+    --docker-plugin) INSTALL_DOCKER_PLUGIN=true ;;
+    --help|-h)
+      echo "Usage: install.sh [--docker-plugin]"
+      echo "  --docker-plugin   Also symlink ~/.docker/cli-plugins/docker-leandock so `docker leandock` works."
+      exit 0
+      ;;
+  esac
+done
 
 detect_platform() {
   local os arch
@@ -84,8 +96,15 @@ main() {
     sudo install -m 0755 "${tmp_dir}/leandock" "${INSTALL_DIR}/leandock"
   fi
 
-  echo "Installed LeanDock successfully: $(command -v leandock)"
-  leandock --version
+  if [ "${INSTALL_DOCKER_PLUGIN}" = "true" ]; then
+    local plugin_dir="${HOME}/.docker/cli-plugins"
+    mkdir -p "${plugin_dir}"
+    ln -sf "${INSTALL_DIR}/leandock" "${plugin_dir}/docker-leandock"
+    echo "Installed Docker CLI plugin symlink: ${plugin_dir}/docker-leandock"
+  fi
+
+  echo "Installed LeanDock successfully: $(command -v leandock || echo "${INSTALL_DIR}/leandock")"
+  "${INSTALL_DIR}/leandock" --version
 }
 
 main "$@"

@@ -34,7 +34,9 @@ export function RepoExplorer({ selectedPath, onSelectPath }: RepoExplorerProps) 
         category === 'ci-scripts' &&
         !f.path.startsWith('.github/') &&
         !f.path.startsWith('scripts/') &&
-        !f.path.startsWith('examples/')
+        !f.path.startsWith('packaging/') &&
+        !f.path.startsWith('examples/') &&
+        f.path !== 'pyproject.toml'
       ) {
         return false;
       }

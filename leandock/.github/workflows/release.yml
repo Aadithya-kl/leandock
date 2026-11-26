@@ -7,9 +7,13 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 jobs:
-  build:
+  # ---------------------------------------------------------------------------
+  # 1. Cross-compile standalone binaries (Linux musl, macOS, Windows)
+  # ---------------------------------------------------------------------------
+  build-binaries:
     name: Build ${{ matrix.target }}
     strategy:
       fail-fast: false
@@ -61,13 +65,14 @@ jobs:
             cargo build --release --target ${{ matrix.target }}
           fi
 
-      - name: Package artifact & SHA256 checksum
+      - name: Package archive, raw binary, and SHA256 checksum
         shell: bash
         run: |
-          mkdir -p dist
+          mkdir -p dist raw/${{ matrix.target }}
           VERSION="${GITHUB_REF_NAME}"
           ARTIFACT="leandock-${VERSION}-${{ matrix.target }}"
           BIN_PATH="target/${{ matrix.target }}/release/${{ matrix.bin }}"
+          cp "${BIN_PATH}" "raw/${{ matrix.target }}/${{ matrix.bin }}"
           if [ "${{ matrix.archive }}" = "tar.gz" ]; then
             tar -C "target/${{ matrix.target }}/release" -czf "dist/${ARTIFACT}.tar.gz" "${{ matrix.bin }}"
             sha256sum "dist/${ARTIFACT}.tar.gz" > "dist/${ARTIFACT}.tar.gz.sha256"
@@ -81,12 +86,22 @@ jobs:
           name: dist-${{ matrix.target }}
           path: dist/*
 
-  publish:
-    needs: build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: raw-${{ matrix.target }}
+          path: raw/*
+
+  # ---------------------------------------------------------------------------
+  # 2. Publish GitHub Release (powers curl, PowerShell, cargo-binstall, Homebrew, Scoop)
+  # ---------------------------------------------------------------------------
+  publish-github-release:
+    name: Publish GitHub Release
+    needs: build-binaries
     runs-on: ubuntu-latest
     steps:
       - uses: actions/download-artifact@v4
         with:
+          pattern: dist-*
           path: artifacts
           merge-multiple: true
 
@@ -100,3 +115,183 @@ jobs:
         with:
           generate_release_notes: true
           files: artifacts/*
+
+  # ---------------------------------------------------------------------------
+  # 3. Publish to npm (`npx leandock` / `npm i -g leandock`)
+  #    Requires secret: NPM_TOKEN (skips cleanly if unset)
+  # ---------------------------------------------------------------------------
+  publish-npm:
+    name: Publish npm (npx leandock)
+    needs: [build-binaries, publish-github-release]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          registry-url: "https://registry.npmjs.org"
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: raw-*
+          path: raw-binaries
+          merge-multiple: true
+
+      - name: Prepare platform binary packages and main wrapper
+        run: node packaging/npm/prepare-packages.mjs "${GITHUB_REF_NAME}" raw-binaries npm-dist
+
+      - name: Publish npm packages
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          if [ -z "${NODE_AUTH_TOKEN}" ]; then
+            echo "NPM_TOKEN not configured; skipping npm publish cleanly."
+            exit 0
+          fi
+          for dir in cli-linux-x64 cli-linux-arm64 cli-darwin-x64 cli-darwin-arm64 cli-win32-x64 leandock; do
+            npm publish "npm-dist/${dir}" --access public
+          done
+
+  # ---------------------------------------------------------------------------
+  # 4. Build & Publish Python Wheels to PyPI (`uvx leandock` / `pipx install leandock`)
+  #    Uses PyPI Trusted Publishing (OIDC) or optional secret: PYPI_API_TOKEN
+  # ---------------------------------------------------------------------------
+  build-pypi-wheels:
+    name: Build PyPI Wheel (${{ matrix.target }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64
+            manylinux: musllinux_1_2
+          - os: ubuntu-latest
+            target: aarch64
+            manylinux: musllinux_1_2
+          - os: macos-latest
+            target: x86_64
+            manylinux: ""
+          - os: macos-latest
+            target: aarch64
+            manylinux: ""
+          - os: windows-latest
+            target: x64
+            manylinux: ""
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          args: --release --out wheels
+          manylinux: ${{ matrix.manylinux }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-${{ matrix.os }}-${{ matrix.target }}
+          path: wheels
+
+  publish-pypi:
+    name: Publish PyPI (uvx leandock)
+    needs: [build-pypi-wheels, publish-github-release]
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/leandock
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: wheels-*
+          path: wheels
+          merge-multiple: true
+      - name: Publish to PyPI via Trusted Publishing (OIDC)
+        if: ${{ vars.ENABLE_PYPI_PUBLISH == 'true' }}
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: wheels
+
+  # ---------------------------------------------------------------------------
+  # 5. Publish to crates.io (`cargo install leandock` & `cargo binstall leandock`)
+  #    Requires secret: CARGO_REGISTRY_TOKEN (skips cleanly if unset)
+  # ---------------------------------------------------------------------------
+  publish-crates-io:
+    name: Publish crates.io
+    needs: publish-github-release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Publish crate
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: |
+          if [ -z "${CARGO_REGISTRY_TOKEN}" ]; then
+            echo "CARGO_REGISTRY_TOKEN not configured; skipping crates.io publish cleanly."
+            exit 0
+          fi
+          cargo publish --locked
+
+  # ---------------------------------------------------------------------------
+  # 6. Update Homebrew Tap (`brew install leandock/tap/leandock`) & Scoop Bucket
+  #    Requires secret: TAP_PUSH_TOKEN (PAT with repo write access to homebrew-tap / scoop-bucket)
+  # ---------------------------------------------------------------------------
+  update-package-managers:
+    name: Update Homebrew Tap & Scoop Bucket
+    needs: publish-github-release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: dist-*
+          path: artifacts
+          merge-multiple: true
+
+      - name: Render Homebrew Formula & Scoop Manifest
+        id: render
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          SHA_DARWIN_ARM64="$(awk '{print $1}' artifacts/leandock-v${VERSION}-aarch64-apple-darwin.tar.gz.sha256)"
+          SHA_DARWIN_X64="$(awk '{print $1}' artifacts/leandock-v${VERSION}-x86_64-apple-darwin.tar.gz.sha256)"
+          SHA_LINUX_ARM64="$(awk '{print $1}' artifacts/leandock-v${VERSION}-aarch64-unknown-linux-musl.tar.gz.sha256)"
+          SHA_LINUX_X64="$(awk '{print $1}' artifacts/leandock-v${VERSION}-x86_64-unknown-linux-musl.tar.gz.sha256)"
+          SHA_WIN_X64="$(awk '{print $1}' artifacts/leandock-v${VERSION}-x86_64-pc-windows-msvc.zip.sha256)"
+
+          mkdir -p rendered
+          sed \
+            -e "s/__VERSION__/${VERSION}/g" \
+            -e "s/__SHA256_DARWIN_ARM64__/${SHA_DARWIN_ARM64}/g" \
+            -e "s/__SHA256_DARWIN_X64__/${SHA_DARWIN_X64}/g" \
+            -e "s/__SHA256_LINUX_ARM64__/${SHA_LINUX_ARM64}/g" \
+            -e "s/__SHA256_LINUX_X64__/${SHA_LINUX_X64}/g" \
+            packaging/homebrew/leandock.rb.tmpl > rendered/leandock.rb
+
+          sed \
+            -e "s/__VERSION__/${VERSION}/g" \
+            -e "s/__SHA256_WINDOWS_X64__/${SHA_WIN_X64}/g" \
+            packaging/scoop/leandock.json.tmpl > rendered/leandock.json
+
+      - name: Push Formula to Homebrew Tap & Scoop Bucket
+        env:
+          TAP_PUSH_TOKEN: ${{ secrets.TAP_PUSH_TOKEN }}
+          GITHUB_OWNER: ${{ github.repository_owner }}
+        run: |
+          if [ -z "${TAP_PUSH_TOKEN}" ]; then
+            echo "TAP_PUSH_TOKEN not configured; skipping Homebrew/Scoop auto-push cleanly."
+            exit 0
+          fi
+          git config --global user.name "leandock-release-bot"
+          git config --global user.email "release-bot@users.noreply.github.com"
+
+          if git clone "https://x-access-token:${TAP_PUSH_TOKEN}@github.com/${GITHUB_OWNER}/homebrew-tap.git" tap_repo; then
+            mkdir -p tap_repo/Formula
+            cp rendered/leandock.rb tap_repo/Formula/leandock.rb
+            (cd tap_repo && git add Formula/leandock.rb && git commit -m "leandock ${GITHUB_REF_NAME}" && git push) || true
+          fi
+
+          if git clone "https://x-access-token:${TAP_PUSH_TOKEN}@github.com/${GITHUB_OWNER}/scoop-bucket.git" scoop_repo; then
+            mkdir -p scoop_repo/bucket
+            cp rendered/leandock.json scoop_repo/bucket/leandock.json
+            (cd scoop_repo && git add bucket/leandock.json && git commit -m "leandock ${GITHUB_REF_NAME}" && git push) || true
+          fi

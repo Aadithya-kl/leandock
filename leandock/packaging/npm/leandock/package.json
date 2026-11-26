@@ -1,0 +1,36 @@
+{
+  "name": "leandock",
+  "version": "0.2.0",
+  "description": "Drop-in, zero-config, non-destructive resource optimizer wrapper for Docker Compose",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/leandock/leandock.git"
+  },
+  "homepage": "https://github.com/leandock/leandock#readme",
+  "keywords": [
+    "docker",
+    "docker-compose",
+    "devops",
+    "vps",
+    "optimization",
+    "rust",
+    "cli"
+  ],
+  "bin": {
+    "leandock": "bin/leandock.js"
+  },
+  "files": [
+    "bin/"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "optionalDependencies": {
+    "@leandock/cli-linux-x64": "0.2.0",
+    "@leandock/cli-linux-arm64": "0.2.0",
+    "@leandock/cli-darwin-x64": "0.2.0",
+    "@leandock/cli-darwin-arm64": "0.2.0",
+    "@leandock/cli-win32-x64": "0.2.0"
+  }
+}

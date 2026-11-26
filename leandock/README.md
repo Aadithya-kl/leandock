@@ -129,35 +129,77 @@ flowchart TD
 
 ## Installation
 
-### Linux & macOS (`x86_64` and `ARM64 / aarch64`)
-Downloads the matching static binary and verifies its SHA256 checksum automatically:
+Choose whichever channel fits your machine — **zero compilation required**, every channel runs the exact same native Rust binary.
 
+### Try Instantly Without Installing (Zero-Install)
+
+Already inside a project with a `docker-compose.yml`? Run LeanDock directly in one command:
+
+**Node.js / Web developers (`npx`):**
+```bash
+npx leandock analyze
+npx leandock up
+```
+
+**Python / AI / FastAPI developers (`uvx`):**
+```bash
+uvx leandock analyze
+uvx leandock up
+```
+
+---
+
+### Install Globally (Recommended for VPS & Daily Use)
+
+**Linux & macOS — 1-Line Installer (`x86_64` & `ARM64`, SHA256 verified):**
 ```bash
 curl -fsSL https://raw.githubusercontent.com/leandock/leandock/main/scripts/install.sh | bash
 ```
+- Install without `sudo`: `LEANDOCK_INSTALL_DIR="$HOME/.local/bin" curl -fsSL ... | bash`
+- Also register as a Docker CLI plugin (`docker leandock up`):
+  ```bash
+  curl -fsSL https://raw.githubusercontent.com/leandock/leandock/main/scripts/install.sh | bash -s -- --docker-plugin
+  ```
 
-Optional environment variables:
-- `LEANDOCK_VERSION=v0.2.0` — pin a specific release tag.
-- `LEANDOCK_INSTALL_DIR="$HOME/.local/bin"` — install without `sudo`.
-
-### Windows (PowerShell)
-Downloads the Windows binary, verifies SHA256, and adds it to your User `PATH`:
-
+**Windows — PowerShell Installer (SHA256 verified):**
 ```powershell
 irm https://raw.githubusercontent.com/leandock/leandock/main/scripts/install.ps1 | iex
 ```
 
-### Build from Source (Rust 1.78+)
-
+**Homebrew (macOS & Linux):**
 ```bash
-git clone https://github.com/leandock/leandock.git
-cd leandock
-cargo install --path .
+brew install leandock/tap/leandock
+```
+
+**Scoop (Windows):**
+```powershell
+scoop bucket add leandock https://github.com/leandock/scoop-bucket
+scoop install leandock
+```
+
+**npm / pnpm / Bun (Global):**
+```bash
+npm install -g leandock
+```
+
+**uv / pipx (Python Global Tool):**
+```bash
+uv tool install leandock
+# or: pipx install leandock
+```
+
+**Cargo (`cargo-binstall` prebuilt binary or compile from source):**
+```bash
+# Downloads prebuilt binary in ~2 seconds
+cargo binstall leandock
+
+# Or compile from source (Rust 1.78+)
+cargo install leandock
 ```
 
 ### Verify Your Environment
 
-Run `leandock doctor` immediately after installing to confirm your detected OS tier, virtualization type, Compose driver, socket path, and privileges:
+Run `leandock doctor` right after installing to confirm your detected OS tier, virtualization type, Compose driver, socket path, and privileges:
 
 ```bash
 leandock doctor
