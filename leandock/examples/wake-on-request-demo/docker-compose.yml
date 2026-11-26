@@ -1,0 +1,33 @@
+# Example 2: Multi-Project VPS Consolidation with Wake-on-Request (Scale-to-Zero)
+# Run `leandock up` followed by `leandock proxy` to let low-traffic services sleep at 0 MB RAM
+# and wake transparently on the first incoming HTTP request (singleflight coalesced).
+
+services:
+  staging-app:
+    image: hashicorp/http-echo:1.0
+    command: ["-listen=:3000", "-text=Hello from Staging App (woken on demand by LeanDock!)"]
+    ports:
+      - "127.0.0.1:13000:3000"
+    labels:
+      leandock.idle.enable: "true"
+      leandock.idle.timeout: "10m"
+      leandock.idle.listen_port: "8081"
+      leandock.idle.target_port: "13000"
+      leandock.idle.wake_timeout: "30s"
+
+  pdf-worker-api:
+    image: hashicorp/http-echo:1.0
+    command: ["-listen=:3001", "-text=PDF Worker ready"]
+    ports:
+      - "127.0.0.1:13001:3001"
+    labels:
+      - "leandock.idle.enable=true"
+      - "leandock.idle.timeout=5m"
+      - "leandock.idle.listen_port=8082"
+      - "leandock.idle.target_port=13001"
+      - "leandock.idle.wake_timeout=45s"
+
+  ephemeral-cache:
+    image: valkey/valkey:8-alpine
+    labels:
+      leandock.redis.ephemeral: "true"

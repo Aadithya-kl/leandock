@@ -1,0 +1,6 @@
+{
+  "name": "LeanDock Studio",
+  "description": "Drop-in, zero-config, non-destructive Rust optimizer for Docker Compose — full open-source repository explorer, live Compose analyzer, and architecture workspace.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

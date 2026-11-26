@@ -1,0 +1,56 @@
+# Example 1: Full-Stack SaaS / MVP Stack on a Small VPS (2 GB - 4 GB RAM)
+# Demonstrates:
+# - MongoDB with custom --replSet argument preserved + WiredTiger cache auto-capped
+# - Redis running in safe persistent queue mode by default (noeviction, RDB untouched)
+# - FastAPI backend built from source with ${VAR:-default} interpolation preserved
+# - Nginx static frontend labeled for opt-in `--extract-static` offloading
+# - Sensitive billing service explicitly excluded via `leandock.ignore=true`
+
+services:
+  mongo:
+    image: mongo:7.0
+    restart: unless-stopped
+    command: ["mongod", "--replSet", "rs0"]
+    volumes:
+      - mongo_data:/data/db
+    ports:
+      - "127.0.0.1:27017:27017"
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+
+  api:
+    image: tiangolo/uvicorn-gunicorn-fastapi:python3.11-slim
+    restart: unless-stopped
+    depends_on:
+      - mongo
+      - redis
+    environment:
+      MONGO_URI: ${MONGO_URI:-mongodb://mongo:27017/app}
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    ports:
+      - "8000:80"
+
+  frontend:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    labels:
+      leandock.static_dir: "/usr/share/nginx/html"
+      leandock.spa: "true"
+
+  billing-critical:
+    image: ghcr.io/example/billing-ledger:1.4
+    restart: always
+    labels:
+      leandock.ignore: "true"
+    mem_limit: 512m
+
+volumes:
+  mongo_data:
+  redis_data:
