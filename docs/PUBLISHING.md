@@ -43,6 +43,8 @@ LeanDock uses the zero-postinstall `optionalDependencies` architecture (identica
 1. Create an account on [npmjs.com](https://www.npmjs.com/) and enable 2FA.
 2. Create a free public npm Organization named `leandock` (or change `@leandock/` in `packaging/npm/` to your own npm scope).
 3. Go to **Access Tokens -> Generate New Token -> Granular Access Token** with **Read and write** permissions for `leandock` and `@leandock/*`.
+   - **Tick “Bypass two-factor authentication (2FA)”** — without it npm rejects publishes from CI with `403 ... Two-factor authentication or granular access token with bypass 2fa enabled is required`.
+   - Set **Packages** to **All packages** (or explicitly select both the unscoped `leandock` package and the `@leandock` scope); a token limited to `@leandock/*` fails the unscoped wrapper with `403 ... You may not perform that action with these credentials`. Alternatively use a classic **Automation** token.
 4. Add the token in GitHub: **Settings -> Secrets and variables -> Actions -> New repository secret**:
    - Name: `NPM_TOKEN`
    - Value: `<your npm granular token>`
