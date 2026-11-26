@@ -142,8 +142,10 @@ pub async fn start_proxy_daemon(
         _ => "docker".to_string(),
     };
 
-    let engine: Arc<dyn engine_client::ContainerEngine> =
-        Arc::from(create_default_engine(profile.runtime.socket_path.clone(), runtime_bin));
+    let engine: Arc<dyn engine_client::ContainerEngine> = Arc::from(create_default_engine(
+        profile.runtime.socket_path.clone(),
+        runtime_bin,
+    ));
 
     let containers = engine.list_containers().await.unwrap_or_default();
     let (mut routes, mut running_map) = discover_idle_routes(&containers);
@@ -173,7 +175,10 @@ pub async fn start_proxy_daemon(
 }
 
 fn load_static_sites(project_dir: &Path) -> Vec<OffloadedSite> {
-    let manifest = project_dir.join(".leandock").join("static").join("sites.json");
+    let manifest = project_dir
+        .join(".leandock")
+        .join("static")
+        .join("sites.json");
     std::fs::read_to_string(manifest)
         .ok()
         .and_then(|raw| serde_json::from_str::<Vec<OffloadedSite>>(&raw).ok())
@@ -183,6 +188,11 @@ fn load_static_sites(project_dir: &Path) -> Vec<OffloadedSite> {
 fn label_truthy(labels: &std::collections::BTreeMap<String, String>, key: &str) -> bool {
     labels
         .get(key)
-        .map(|v| matches!(v.trim().to_lowercase().as_str(), "true" | "1" | "yes" | "on"))
+        .map(|v| {
+            matches!(
+                v.trim().to_lowercase().as_str(),
+                "true" | "1" | "yes" | "on"
+            )
+        })
         .unwrap_or(false)
 }

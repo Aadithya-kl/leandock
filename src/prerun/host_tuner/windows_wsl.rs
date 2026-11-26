@@ -36,9 +36,10 @@ pub fn tune_windows_wsl(
 
     let (merged, changed) = merge_wslconfig_ini(existing.as_deref(), profile.hardware.total_ram_mb);
     if !changed {
-        report
-            .skipped
-            .push(format!("{} is already tuned for WSL2 memory reclamation", wslconfig_path.display()));
+        report.skipped.push(format!(
+            "{} is already tuned for WSL2 memory reclamation",
+            wslconfig_path.display()
+        ));
         return Ok(report);
     }
 

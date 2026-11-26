@@ -186,9 +186,9 @@ async fn forward_http1(
     target_port: u16,
 ) -> Result<Response<Full<Bytes>>> {
     let target_addr = format!("{}:{}", target_host, target_port);
-    let stream = TcpStream::connect(&target_addr)
-        .await
-        .map_err(|e| LeanDockError::Proxy(format!("Upstream connect to {} failed: {}", target_addr, e)))?;
+    let stream = TcpStream::connect(&target_addr).await.map_err(|e| {
+        LeanDockError::Proxy(format!("Upstream connect to {} failed: {}", target_addr, e))
+    })?;
 
     let io = TokioIo::new(stream);
     let (mut sender, conn) = hyper::client::conn::http1::handshake(io)

@@ -102,7 +102,10 @@ pub fn export_quadlet_units(
             unit.push_str(&format!("Exec={}\n", cmd.join(" ")));
         }
         if let Some(limit_mb) = svc_plan.mem_limit_mb {
-            unit.push_str(&format!("PodmanArgs=--memory={}m --log-opt max-size=10m\n", limit_mb));
+            unit.push_str(&format!(
+                "PodmanArgs=--memory={}m --log-opt max-size=10m\n",
+                limit_mb
+            ));
         }
 
         unit.push_str("\n[Service]\nRestart=on-failure\nMemoryKSM=yes\n\n[Install]\nWantedBy=default.target\n");

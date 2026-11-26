@@ -87,7 +87,12 @@ impl WakeManager {
         routes: Vec<IdleRouteConfig>,
         initially_running: &HashMap<String, bool>,
     ) -> Self {
-        Self::with_probe(engine, Arc::new(TcpReadinessProbe), routes, initially_running)
+        Self::with_probe(
+            engine,
+            Arc::new(TcpReadinessProbe),
+            routes,
+            initially_running,
+        )
     }
 
     /// Creates a `WakeManager` with a custom `ReadinessProbe` (used in unit/integration tests).

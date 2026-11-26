@@ -136,7 +136,10 @@ pub fn merge_wslconfig_ini(existing_raw: Option<&str>, total_ram_mb: u64) -> (St
             }
             if trimmed.starts_with('[') && trimmed.ends_with(']') {
                 current_section = trimmed[1..trimmed.len() - 1].trim().to_string();
-                if !sections.iter().any(|(s, _)| s.eq_ignore_ascii_case(&current_section)) {
+                if !sections
+                    .iter()
+                    .any(|(s, _)| s.eq_ignore_ascii_case(&current_section))
+                {
                     sections.push((current_section.clone(), Vec::new()));
                 }
             } else if let Some((k, v)) = trimmed.split_once('=') {
@@ -160,7 +163,10 @@ pub fn merge_wslconfig_ini(existing_raw: Option<&str>, total_ram_mb: u64) -> (St
         ("wsl2", desired_wsl2.as_slice()),
         ("experimental", desired_experimental.as_slice()),
     ] {
-        if !sections.iter().any(|(s, _)| s.eq_ignore_ascii_case(sec_name)) {
+        if !sections
+            .iter()
+            .any(|(s, _)| s.eq_ignore_ascii_case(sec_name))
+        {
             sections.push((sec_name.to_string(), Vec::new()));
         }
         if let Some((_, pairs)) = sections

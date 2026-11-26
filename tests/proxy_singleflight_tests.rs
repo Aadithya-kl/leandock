@@ -92,7 +92,9 @@ async fn fifty_concurrent_requests_trigger_exactly_one_container_start() {
     let mut handles = Vec::new();
     for _ in 0..50 {
         let mgr = manager.clone();
-        handles.push(tokio::spawn(async move { mgr.ensure_awake("demo-app").await }));
+        handles.push(tokio::spawn(
+            async move { mgr.ensure_awake("demo-app").await },
+        ));
     }
 
     for h in handles {

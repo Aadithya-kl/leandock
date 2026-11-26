@@ -67,20 +67,20 @@ impl UnixSocketEngine {
         use hyper_util::rt::TokioIo;
         use tokio::net::UnixStream;
 
-        let stream = UnixStream::connect(&self.socket_path)
-            .await
-            .map_err(|e| {
-                LeanDockError::Proxy(format!(
-                    "Failed to connect to Unix socket {}: {}",
-                    self.socket_path.display(),
-                    e
-                ))
-            })?;
+        let stream = UnixStream::connect(&self.socket_path).await.map_err(|e| {
+            LeanDockError::Proxy(format!(
+                "Failed to connect to Unix socket {}: {}",
+                self.socket_path.display(),
+                e
+            ))
+        })?;
 
         let io = TokioIo::new(stream);
         let (mut sender, conn) = hyper::client::conn::http1::handshake(io)
             .await
-            .map_err(|e| LeanDockError::Proxy(format!("Unix socket HTTP handshake failed: {}", e)))?;
+            .map_err(|e| {
+                LeanDockError::Proxy(format!("Unix socket HTTP handshake failed: {}", e))
+            })?;
 
         tokio::spawn(async move {
             if let Err(err) = conn.await {
@@ -95,10 +95,9 @@ impl UnixSocketEngine {
             .body(Full::new(Bytes::new()))
             .map_err(|e| LeanDockError::Proxy(format!("Invalid HTTP request: {}", e)))?;
 
-        let res = sender
-            .send_request(req)
-            .await
-            .map_err(|e| LeanDockError::Proxy(format!("Docker Engine API request failed: {}", e)))?;
+        let res = sender.send_request(req).await.map_err(|e| {
+            LeanDockError::Proxy(format!("Docker Engine API request failed: {}", e))
+        })?;
 
         let status = res.status().as_u16();
         let body = res

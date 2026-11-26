@@ -107,7 +107,9 @@ fn extract_from_image(
         return Err(LeanDockError::CommandFailed {
             cmd: format!("{} create {}", runtime_bin, image),
             code: create_out.status.code(),
-            stderr: String::from_utf8_lossy(&create_out.stderr).trim().to_string(),
+            stderr: String::from_utf8_lossy(&create_out.stderr)
+                .trim()
+                .to_string(),
         });
     }
 

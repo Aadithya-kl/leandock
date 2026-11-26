@@ -53,7 +53,12 @@ pub fn print_analyze_report(
     plan: &OptimizationPlan,
     host_preview: Option<&HostTuningReport>,
 ) {
-    println!("\n{}", "LeanDock Pre-Flight Analysis (Zero-Touch Dry Run)".bold().cyan());
+    println!(
+        "\n{}",
+        "LeanDock Pre-Flight Analysis (Zero-Touch Dry Run)"
+            .bold()
+            .cyan()
+    );
     println!(
         "Host: {} ({}, {} cores, {} MB RAM, {:.1} GB free disk) · Virtualization: {}",
         profile.platform.distro,
@@ -66,7 +71,11 @@ pub fn print_analyze_report(
     println!(
         "Runtime: {} · Root privileges: {}",
         profile.runtime.compose_driver,
-        if profile.platform.is_root { "yes" } else { "no (non-root mode)" }
+        if profile.platform.is_root {
+            "yes"
+        } else {
+            "no (non-root mode)"
+        }
     );
 
     println!("\n{}", "Platform Capability Tiers".bold());
@@ -103,7 +112,13 @@ pub fn print_analyze_report(
     println!("\n{}", "Proposed Service Optimizations".bold());
     let mut svc_table = Table::new();
     svc_table.load_preset(UTF8_FULL);
-    svc_table.set_header(vec!["Service", "Role", "Memory Cap", "Reservation", "Tuning Actions"]);
+    svc_table.set_header(vec![
+        "Service",
+        "Role",
+        "Memory Cap",
+        "Reservation",
+        "Tuning Actions",
+    ]);
 
     for svc in &plan.services {
         let limit_str = if svc.ignored {
@@ -167,15 +182,18 @@ pub fn print_analyze_report(
 }
 
 /// Prints the live `leandock status` dashboard.
-pub fn print_status_report(
-    containers: &[LiveContainerStat],
-    kernel_stats: &KernelMemoryStats,
-) {
+pub fn print_status_report(containers: &[LiveContainerStat], kernel_stats: &KernelMemoryStats) {
     println!("\n{}", "LeanDock Live Stack Status".bold().cyan());
 
     let mut table = Table::new();
     table.load_preset(UTF8_FULL);
-    table.set_header(vec!["Container", "State", "CPU %", "RAM Usage", "Wake-on-Request"]);
+    table.set_header(vec![
+        "Container",
+        "State",
+        "CPU %",
+        "RAM Usage",
+        "Wake-on-Request",
+    ]);
 
     if containers.is_empty() {
         table.add_row(vec![
@@ -230,7 +248,10 @@ pub fn print_doctor_report(profile: &HostProfile) {
 
     table.add_row(vec![
         Cell::new("Operating System"),
-        Cell::new(format!("{} ({})", profile.platform.distro, profile.platform.os)),
+        Cell::new(format!(
+            "{} ({})",
+            profile.platform.distro, profile.platform.os
+        )),
         Cell::new("OK").fg(Color::Green),
     ]);
     table.add_row(vec![
@@ -258,7 +279,11 @@ pub fn print_doctor_report(profile: &HostProfile) {
     table.add_row(vec![
         Cell::new("Virtualization"),
         Cell::new(profile.platform.virtualization.to_string()),
-        if profile.platform.virtualization.is_restricted_container_vps() {
+        if profile
+            .platform
+            .virtualization
+            .is_restricted_container_vps()
+        {
             Cell::new("RESTRICTED").fg(Color::Yellow)
         } else {
             Cell::new("OK").fg(Color::Green)
@@ -302,8 +327,16 @@ pub fn print_doctor_report(profile: &HostProfile) {
         Cell::new("Optional Helpers"),
         Cell::new(format!(
             "podlet: {} · slim: {}",
-            if profile.runtime.has_podlet { "installed" } else { "absent" },
-            if profile.runtime.has_slim { "installed" } else { "absent" }
+            if profile.runtime.has_podlet {
+                "installed"
+            } else {
+                "absent"
+            },
+            if profile.runtime.has_slim {
+                "installed"
+            } else {
+                "absent"
+            }
         )),
         Cell::new("INFO"),
     ]);
@@ -392,7 +425,8 @@ pub fn format_benchmark_report(
                 comparison.ram_delta_pct,
                 comparison.before.swap_zram_used_mb,
                 comparison.after.swap_zram_used_mb,
-                comparison.after.swap_zram_used_mb as i64 - comparison.before.swap_zram_used_mb as i64,
+                comparison.after.swap_zram_used_mb as i64
+                    - comparison.before.swap_zram_used_mb as i64,
                 comparison.before.disk_used_gb,
                 comparison.after.disk_used_gb,
                 comparison.disk_delta_gb,
@@ -417,7 +451,10 @@ pub fn format_benchmark_report(
                 "RAM Used (MB)".to_string(),
                 comparison.before.ram_used_mb.to_string(),
                 comparison.after.ram_used_mb.to_string(),
-                format!("{:+} MB ({:+.1}%)", comparison.ram_delta_mb, comparison.ram_delta_pct),
+                format!(
+                    "{:+} MB ({:+.1}%)",
+                    comparison.ram_delta_mb, comparison.ram_delta_pct
+                ),
             ]);
             table.add_row(vec![
                 "Swap/zram Used (MB)".to_string(),
@@ -425,7 +462,8 @@ pub fn format_benchmark_report(
                 comparison.after.swap_zram_used_mb.to_string(),
                 format!(
                     "{:+} MB",
-                    comparison.after.swap_zram_used_mb as i64 - comparison.before.swap_zram_used_mb as i64
+                    comparison.after.swap_zram_used_mb as i64
+                        - comparison.before.swap_zram_used_mb as i64
                 ),
             ]);
             table.add_row(vec![

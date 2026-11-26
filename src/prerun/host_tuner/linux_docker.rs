@@ -35,9 +35,9 @@ pub fn tune_linux_docker(
     }
 
     if profile.runtime.docker_version.is_none() {
-        report
-            .skipped
-            .push("Docker Engine not detected; skipping /etc/docker/daemon.json tuning".to_string());
+        report.skipped.push(
+            "Docker Engine not detected; skipping /etc/docker/daemon.json tuning".to_string(),
+        );
         return Ok(report);
     }
 

@@ -8,8 +8,8 @@ This guide explains how maintainers configure accounts, tokens, and repositories
 | **npm** (`npx` / `npm`) | `npx leandock analyze` | [npmjs.com](https://www.npmjs.com/) + `@leandock` org/scope | Secret `NPM_TOKEN` |
 | **PyPI** (`uvx` / `pipx`) | `uvx leandock analyze` | [pypi.org](https://pypi.org/) (Trusted Publishing OIDC) | Repo variable `ENABLE_PYPI_PUBLISH=true` |
 | **crates.io** (`cargo`) | `cargo binstall leandock` / `cargo install leandock` | [crates.io](https://crates.io/) | Secret `CARGO_REGISTRY_TOKEN` |
-| **Homebrew Tap** (`brew`) | `brew install <owner>/tap/leandock` | GitHub repo `<owner>/homebrew-tap` | Secret `TAP_PUSH_TOKEN` |
-| **Scoop Bucket** (`scoop`) | `scoop bucket add <owner> ... && scoop install leandock` | GitHub repo `<owner>/scoop-bucket` | Secret `TAP_PUSH_TOKEN` |
+| **Homebrew Tap** (`brew`) *(optional, disabled)* | `brew install <owner>/tap/leandock` | GitHub repo `<owner>/homebrew-tap` | Secret `TAP_PUSH_TOKEN` |
+| **Scoop Bucket** (`scoop`) *(optional, disabled)* | `scoop bucket add <owner> ... && scoop install leandock` | GitHub repo `<owner>/scoop-bucket` | Secret `TAP_PUSH_TOKEN` |
 
 > Every optional channel in `.github/workflows/release.yml` checks whether its secret/variable is configured and **skips cleanly** if unset. You can enable channels one by one at your own pace.
 
@@ -19,7 +19,7 @@ This guide explains how maintainers configure accounts, tokens, and repositories
 
 ### 1. GitHub Repository (Required — Powers `curl`, PowerShell & `cargo-binstall`)
 1. Create a public repository on GitHub (for example `https://github.com/<your-org>/leandock`).
-2. Update the repository URLs if your GitHub org/username differs from `leandock/leandock`:
+2. Repository URLs are already pinned to `https://github.com/pvbang/leandock`. If you fork or rename the repository, update them consistently in:
    - `Cargo.toml` (`repository`, `homepage`, `documentation`)
    - `pyproject.toml` (`[project.urls]`)
    - `packaging/npm/leandock/package.json` & `packaging/npm/prepare-packages.mjs`
@@ -50,7 +50,7 @@ LeanDock uses the zero-postinstall `optionalDependencies` architecture (identica
 ---
 
 ### 3. PyPI Setup (`uvx leandock` & `pipx install leandock`)
-LeanDock uses `maturin` (`bindings = "bin"`) in `pyproject.toml` to compile native platform wheels so Python/AI users run `uvx leandock` without needing Rust installed.
+LeanDock uses `maturin` (`bindings = "bin"`) in `pyproject.toml` to compile native platform wheels so Python/AI users run `uvx leandock` without needing Rust installed. The release workflow builds wheels for macOS (x64/arm64), Windows (x64) and Linux (x64/arm64) in both `manylinux_2_17` (glibc: Debian/Ubuntu/Fedora/RHEL) and `musllinux_1_2` (musl: Alpine/distroless) flavours.
 
 **Steps (Passwordless OIDC Trusted Publishing — Recommended):**
 1. Create an account on [pypi.org](https://pypi.org/) and enable 2FA.
@@ -75,9 +75,12 @@ LeanDock uses `maturin` (`bindings = "bin"`) in `pyproject.toml` to compile nati
    - Name: `CARGO_REGISTRY_TOKEN`
    - Value: `<your crates.io token>`
 
+> `Cargo.lock` **must stay committed** — the workflow publishes with `cargo publish --locked`.
+
 ---
 
-### 5. Homebrew Tap & Scoop Bucket (`brew` & `scoop`)
+### 5. Homebrew Tap & Scoop Bucket (`brew` & `scoop`) — optional, not enabled
+This channel is intentionally **not configured** for the current release. The `update-package-managers` job in `release.yml` skips cleanly while `TAP_PUSH_TOKEN` is unset. To enable it later:
 1. Create two empty public GitHub repositories under the same GitHub owner:
    - `homebrew-tap` (will contain `Formula/leandock.rb`)
    - `scoop-bucket` (will contain `bucket/leandock.json`)
@@ -108,4 +111,4 @@ LeanDock uses `maturin` (`bindings = "bin"`) in `pyproject.toml` to compile nati
    git tag v0.2.0
    git push origin main --tags
    ```
-4. Monitor the **Release** workflow in GitHub Actions — within ~10 minutes, every configured channel (`curl`, PowerShell, `npx`, `uvx`, `brew`, `scoop`, and `cargo binstall`) will serve `v0.2.0` automatically.
+4. Monitor the **Release** workflow in GitHub Actions — within ~10 minutes, every configured channel (`curl`, PowerShell, `npx`, `uvx`, and `cargo binstall`) will serve `v0.2.0` automatically.

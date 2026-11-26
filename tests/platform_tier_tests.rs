@@ -17,10 +17,22 @@ fn linux_kvm_root_modern_kernel_enables_all_four_tiers() {
         ksm_sysfs_writable: true,
     });
 
-    assert_eq!(profile.capabilities.tier1_compose_and_db, CapabilitySupport::Full);
-    assert_eq!(profile.capabilities.tier2_wake_proxy, CapabilitySupport::Full);
-    assert_eq!(profile.capabilities.tier3_host_tuning, CapabilitySupport::Full);
-    assert_eq!(profile.capabilities.tier4_kernel_opt, CapabilitySupport::Full);
+    assert_eq!(
+        profile.capabilities.tier1_compose_and_db,
+        CapabilitySupport::Full
+    );
+    assert_eq!(
+        profile.capabilities.tier2_wake_proxy,
+        CapabilitySupport::Full
+    );
+    assert_eq!(
+        profile.capabilities.tier3_host_tuning,
+        CapabilitySupport::Full
+    );
+    assert_eq!(
+        profile.capabilities.tier4_kernel_opt,
+        CapabilitySupport::Full
+    );
     assert!(profile.capabilities.zram_supported);
     assert!(profile.capabilities.ksm_supported);
     assert!(profile.capabilities.quadlet_supported);
@@ -40,7 +52,10 @@ fn linux_kvm_older_kernel_or_systemd_skips_ksm_cleanly_while_keeping_zram() {
         ksm_sysfs_writable: true,
     });
 
-    assert_eq!(profile.capabilities.tier4_kernel_opt, CapabilitySupport::Partial);
+    assert_eq!(
+        profile.capabilities.tier4_kernel_opt,
+        CapabilitySupport::Partial
+    );
     assert!(profile.capabilities.zram_supported);
     assert!(!profile.capabilities.ksm_supported);
     assert!(profile.capabilities.tier4_reason.contains("kernel < 6.1"));
@@ -61,10 +76,22 @@ fn linux_lxc_and_openvz_auto_skip_tier4_without_failing() {
             ksm_sysfs_writable: false,
         });
 
-        assert_eq!(profile.capabilities.tier1_compose_and_db, CapabilitySupport::Full);
-        assert_eq!(profile.capabilities.tier2_wake_proxy, CapabilitySupport::Full);
-        assert_eq!(profile.capabilities.tier3_host_tuning, CapabilitySupport::Partial);
-        assert_eq!(profile.capabilities.tier4_kernel_opt, CapabilitySupport::Skipped);
+        assert_eq!(
+            profile.capabilities.tier1_compose_and_db,
+            CapabilitySupport::Full
+        );
+        assert_eq!(
+            profile.capabilities.tier2_wake_proxy,
+            CapabilitySupport::Full
+        );
+        assert_eq!(
+            profile.capabilities.tier3_host_tuning,
+            CapabilitySupport::Partial
+        );
+        assert_eq!(
+            profile.capabilities.tier4_kernel_opt,
+            CapabilitySupport::Skipped
+        );
         assert!(!profile.capabilities.zram_supported);
         assert!(!profile.capabilities.ksm_supported);
     }
@@ -84,10 +111,22 @@ fn linux_non_root_keeps_tier1_and_tier2_full_and_skips_privileged_tiers() {
         ksm_sysfs_writable: false,
     });
 
-    assert_eq!(profile.capabilities.tier1_compose_and_db, CapabilitySupport::Full);
-    assert_eq!(profile.capabilities.tier2_wake_proxy, CapabilitySupport::Full);
-    assert_eq!(profile.capabilities.tier3_host_tuning, CapabilitySupport::Partial);
-    assert_eq!(profile.capabilities.tier4_kernel_opt, CapabilitySupport::Skipped);
+    assert_eq!(
+        profile.capabilities.tier1_compose_and_db,
+        CapabilitySupport::Full
+    );
+    assert_eq!(
+        profile.capabilities.tier2_wake_proxy,
+        CapabilitySupport::Full
+    );
+    assert_eq!(
+        profile.capabilities.tier3_host_tuning,
+        CapabilitySupport::Partial
+    );
+    assert_eq!(
+        profile.capabilities.tier4_kernel_opt,
+        CapabilitySupport::Skipped
+    );
 }
 
 #[test]
@@ -103,10 +142,16 @@ fn windows_and_macos_enable_appropriate_tiers_and_skip_linux_kernel_tier() {
         can_sudo_noninteractive: false,
         ksm_sysfs_writable: false,
     });
-    assert_eq!(win.capabilities.tier1_compose_and_db, CapabilitySupport::Full);
+    assert_eq!(
+        win.capabilities.tier1_compose_and_db,
+        CapabilitySupport::Full
+    );
     assert_eq!(win.capabilities.tier2_wake_proxy, CapabilitySupport::Full);
     assert_eq!(win.capabilities.tier3_host_tuning, CapabilitySupport::Full);
-    assert_eq!(win.capabilities.tier4_kernel_opt, CapabilitySupport::Skipped);
+    assert_eq!(
+        win.capabilities.tier4_kernel_opt,
+        CapabilitySupport::Skipped
+    );
 
     let mac = PlatformProfile::from_facts(PlatformFacts {
         os: HostOs::MacOs,
@@ -119,8 +164,17 @@ fn windows_and_macos_enable_appropriate_tiers_and_skip_linux_kernel_tier() {
         can_sudo_noninteractive: false,
         ksm_sysfs_writable: false,
     });
-    assert_eq!(mac.capabilities.tier1_compose_and_db, CapabilitySupport::Full);
+    assert_eq!(
+        mac.capabilities.tier1_compose_and_db,
+        CapabilitySupport::Full
+    );
     assert_eq!(mac.capabilities.tier2_wake_proxy, CapabilitySupport::Full);
-    assert_eq!(mac.capabilities.tier3_host_tuning, CapabilitySupport::Partial);
-    assert_eq!(mac.capabilities.tier4_kernel_opt, CapabilitySupport::Skipped);
+    assert_eq!(
+        mac.capabilities.tier3_host_tuning,
+        CapabilitySupport::Partial
+    );
+    assert_eq!(
+        mac.capabilities.tier4_kernel_opt,
+        CapabilitySupport::Skipped
+    );
 }

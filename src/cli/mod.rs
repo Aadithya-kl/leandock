@@ -334,8 +334,7 @@ fn cmd_up(args: UpArgs<'_>) -> Result<()> {
     if args.dry_run {
         print_analyze_report(&profile, &plan, Some(&host_report));
         if !args.no_kernel {
-            let kernel_preview =
-                apply_kernel_optimizations(&profile, &mut backup_session, true)?;
+            let kernel_preview = apply_kernel_optimizations(&profile, &mut backup_session, true)?;
             for item in &kernel_preview.applied {
                 println!("  [kernel] {}", item);
             }
@@ -343,7 +342,10 @@ fn cmd_up(args: UpArgs<'_>) -> Result<()> {
                 println!("  [kernel-skip] {}", item);
             }
         }
-        println!("\n{}", "Dry run complete. Zero files or containers were modified.".cyan());
+        println!(
+            "\n{}",
+            "Dry run complete. Zero files or containers were modified.".cyan()
+        );
         return Ok(());
     }
 
@@ -573,7 +575,10 @@ fn cmd_bench(
     }
 
     // 1. Measure baseline unmodified Compose stack
-    println!("{}", "Benchmark Phase 1/2: Measuring raw `docker compose up -d`...".cyan());
+    println!(
+        "{}",
+        "Benchmark Phase 1/2: Measuring raw `docker compose up -d`...".cyan()
+    );
     let t0 = Instant::now();
     invoke_compose_up(&driver, &compose_path, None)?;
     let raw_startup_ms = t0.elapsed().as_millis() as u64;
@@ -584,7 +589,10 @@ fn cmd_bench(
     let _ = cmd_down(cwd, Some(&compose_path), None);
 
     // 2. Measure LeanDock-optimized Compose stack
-    println!("{}", "Benchmark Phase 2/2: Measuring `leandock up`...".cyan());
+    println!(
+        "{}",
+        "Benchmark Phase 2/2: Measuring `leandock up`...".cyan()
+    );
     let opts = TunerOptions {
         effective_ram_mb: profile.effective_ram_mb(),
         logical_cores: profile.hardware.logical_cores,
@@ -629,7 +637,12 @@ fn cmd_revert(cwd: &Path, all: bool) -> Result<()> {
         );
     }
 
-    println!("\n{}", "LeanDock revert complete. Host and workspace restored.".bold().green());
+    println!(
+        "\n{}",
+        "LeanDock revert complete. Host and workspace restored."
+            .bold()
+            .green()
+    );
     Ok(())
 }
 
@@ -703,8 +716,7 @@ WantedBy={}\n",
         let unit_path = if profile.platform.is_root {
             PathBuf::from("/etc/systemd/system/leandock-proxy.service")
         } else {
-            crate::backup::user_home_dir()
-                .join(".config/systemd/user/leandock-proxy.service")
+            crate::backup::user_home_dir().join(".config/systemd/user/leandock-proxy.service")
         };
 
         let backup_mgr = BackupManager::default_for_host(profile.platform.is_root);

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO="${LEANDOCK_REPO:-leandock/leandock}"
+REPO="${LEANDOCK_REPO:-pvbang/leandock}"
 INSTALL_DIR="${LEANDOCK_INSTALL_DIR:-/usr/local/bin}"
 VERSION="${LEANDOCK_VERSION:-latest}"
 INSTALL_DOCKER_PLUGIN=false
@@ -44,18 +44,19 @@ detect_platform() {
 verify_sha256() {
   local file="$1"
   local checksum_file="$2"
+  local expected actual
+  expected="$(awk '{print $1}' "${checksum_file}")"
   if command -v sha256sum >/dev/null 2>&1; then
-    (cd "$(dirname "${file}")" && sha256sum -c "$(basename "${checksum_file}")")
+    actual="$(sha256sum "${file}" | awk '{print $1}')"
   elif command -v shasum >/dev/null 2>&1; then
-    local expected actual
-    expected="$(awk '{print $1}' "${checksum_file}")"
     actual="$(shasum -a 256 "${file}" | awk '{print $1}')"
-    if [ "${expected}" != "${actual}" ]; then
-      echo "Error: SHA256 checksum mismatch!" >&2
-      exit 1
-    fi
   else
     echo "Warning: neither sha256sum nor shasum found; skipping checksum verification." >&2
+    return 0
+  fi
+  if [ "${expected}" != "${actual}" ]; then
+    echo "Error: SHA256 checksum mismatch!" >&2
+    exit 1
   fi
 }
 

@@ -180,7 +180,9 @@ impl ParsedCompose {
             .get(Value::String("services".into()))
             .and_then(Value::as_mapping)
             .ok_or_else(|| {
-                LeanDockError::ComposeSchema("Compose file must contain a `services:` mapping".into())
+                LeanDockError::ComposeSchema(
+                    "Compose file must contain a `services:` mapping".into(),
+                )
             })?;
 
         let mut services = BTreeMap::new();
@@ -367,9 +369,14 @@ pub fn detect_database_kind(image: Option<&str>) -> Option<DatabaseKind> {
 
     if leaf == "mongo" || leaf == "mongodb-community-server" {
         Some(DatabaseKind::MongoDb)
-    } else if leaf == "postgres" || leaf == "postgis" || leaf == "timescaledb" || leaf == "pgvector" {
+    } else if leaf == "postgres" || leaf == "postgis" || leaf == "timescaledb" || leaf == "pgvector"
+    {
         Some(DatabaseKind::Postgres)
-    } else if leaf == "redis" || leaf == "redis-stack" || leaf == "redis-stack-server" || leaf == "valkey" {
+    } else if leaf == "redis"
+        || leaf == "redis-stack"
+        || leaf == "redis-stack-server"
+        || leaf == "valkey"
+    {
         Some(DatabaseKind::RedisOrValkey)
     } else if leaf == "mysql" || leaf == "mariadb" || leaf == "percona" {
         Some(DatabaseKind::MySqlOrMariaDb)

@@ -45,9 +45,9 @@ fn configure_zram(
 ) -> Result<()> {
     // Skip cleanly if any zram swap device is already active.
     if is_zram_already_active() {
-        report
-            .skipped
-            .push("zram: already active on host (/dev/zram*); preserving existing setup".to_string());
+        report.skipped.push(
+            "zram: already active on host (/dev/zram*); preserving existing setup".to_string(),
+        );
         return Ok(());
     }
 

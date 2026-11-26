@@ -27,8 +27,16 @@ services:
         },
     );
 
-    let map_svc = plan.services.iter().find(|s| s.name == "db_map_ignored").unwrap();
-    let list_svc = plan.services.iter().find(|s| s.name == "db_list_ignored").unwrap();
+    let map_svc = plan
+        .services
+        .iter()
+        .find(|s| s.name == "db_map_ignored")
+        .unwrap();
+    let list_svc = plan
+        .services
+        .iter()
+        .find(|s| s.name == "db_list_ignored")
+        .unwrap();
     let api_svc = plan.services.iter().find(|s| s.name == "api").unwrap();
 
     assert!(map_svc.ignored);
@@ -73,7 +81,11 @@ services:
         },
     );
 
-    let repl = plan.services.iter().find(|s| s.name == "mongo_repl").unwrap();
+    let repl = plan
+        .services
+        .iter()
+        .find(|s| s.name == "mongo_repl")
+        .unwrap();
     let repl_cmd = repl.tuned_command.as_ref().expect("mongo_repl tuned");
     assert_eq!(repl_cmd[0], "mongod");
     assert!(repl_cmd.contains(&"--replSet".to_string()));
@@ -200,7 +212,11 @@ services:
         .position(|a| a == "--wiredTigerCacheSizeGB")
         .unwrap();
     let wt_val: f64 = mongo_cmd[wt_idx + 1].parse().unwrap();
-    assert!(wt_val >= 0.25, "WiredTiger floor must be >= 0.25, got {}", wt_val);
+    assert!(
+        wt_val >= 0.25,
+        "WiredTiger floor must be >= 0.25, got {}",
+        wt_val
+    );
 
     // Postgres shared_buffers floor >= 64MB
     let pg_cmd = plan
@@ -223,10 +239,17 @@ services:
         .as_ref()
         .unwrap();
     assert!(mysql_cmd.iter().any(|a| a == "--performance-schema=OFF"));
-    assert!(mysql_cmd.iter().any(|a| a.starts_with("--innodb-buffer-pool-size=")));
+    assert!(mysql_cmd
+        .iter()
+        .any(|a| a.starts_with("--innodb-buffer-pool-size=")));
 
     // Qdrant caps optimization threads on <= 2-core VPS
-    let qdrant_env = &plan.services.iter().find(|s| s.name == "qdrant").unwrap().extra_env;
+    let qdrant_env = &plan
+        .services
+        .iter()
+        .find(|s| s.name == "qdrant")
+        .unwrap()
+        .extra_env;
     assert_eq!(
         qdrant_env.get("QDRANT__STORAGE__PERFORMANCE__MAX_OPTIMIZATION_THREADS"),
         Some(&"1".to_string())

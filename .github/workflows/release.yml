@@ -73,13 +73,26 @@ jobs:
           ARTIFACT="leandock-${VERSION}-${{ matrix.target }}"
           BIN_PATH="target/${{ matrix.target }}/release/${{ matrix.bin }}"
           cp "${BIN_PATH}" "raw/${{ matrix.target }}/${{ matrix.bin }}"
+
+          hash_file() {
+            if command -v sha256sum >/dev/null 2>&1; then
+              sha256sum "$1" | awk '{print $1}'
+            else
+              shasum -a 256 "$1" | awk '{print $1}'
+            fi
+          }
+
           if [ "${{ matrix.archive }}" = "tar.gz" ]; then
-            tar -C "target/${{ matrix.target }}/release" -czf "dist/${ARTIFACT}.tar.gz" "${{ matrix.bin }}"
-            sha256sum "dist/${ARTIFACT}.tar.gz" > "dist/${ARTIFACT}.tar.gz.sha256"
+            ARCHIVE="${ARTIFACT}.tar.gz"
+            tar -C "target/${{ matrix.target }}/release" -czf "dist/${ARCHIVE}" "${{ matrix.bin }}"
           else
-            7z a "dist/${ARTIFACT}.zip" "${BIN_PATH}"
-            sha256sum "dist/${ARTIFACT}.zip" > "dist/${ARTIFACT}.zip.sha256"
+            ARCHIVE="${ARTIFACT}.zip"
+            (cd "target/${{ matrix.target }}/release" && 7z a "../../../dist/${ARCHIVE}" "${{ matrix.bin }}")
           fi
+
+          # Keep the checksum file filename-only so install.sh / install.ps1 can
+          # verify it from any working directory.
+          (cd dist && echo "$(hash_file "${ARCHIVE}")  ${ARCHIVE}" > "${ARCHIVE}.sha256")
 
       - uses: actions/upload-artifact@v4
         with:
@@ -158,26 +171,41 @@ jobs:
   #    Uses PyPI Trusted Publishing (OIDC) or optional secret: PYPI_API_TOKEN
   # ---------------------------------------------------------------------------
   build-pypi-wheels:
-    name: Build PyPI Wheel (${{ matrix.target }})
+    name: Build PyPI Wheel (${{ matrix.label }})
     strategy:
       fail-fast: false
       matrix:
         include:
+          # glibc Linux (Debian/Ubuntu/Fedora/RHEL/...)
+          - os: ubuntu-latest
+            target: x86_64
+            manylinux: manylinux_2_17
+            label: linux-x64-manylinux
+          - os: ubuntu-latest
+            target: aarch64
+            manylinux: manylinux_2_17
+            label: linux-arm64-manylinux
+          # musl Linux (Alpine, distroless, ...)
           - os: ubuntu-latest
             target: x86_64
             manylinux: musllinux_1_2
+            label: linux-x64-musllinux
           - os: ubuntu-latest
             target: aarch64
             manylinux: musllinux_1_2
+            label: linux-arm64-musllinux
           - os: macos-latest
             target: x86_64
             manylinux: ""
+            label: macos-x64
           - os: macos-latest
             target: aarch64
             manylinux: ""
+            label: macos-arm64
           - os: windows-latest
             target: x64
             manylinux: ""
+            label: windows-x64
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -188,7 +216,7 @@ jobs:
           manylinux: ${{ matrix.manylinux }}
       - uses: actions/upload-artifact@v4
         with:
-          name: wheels-${{ matrix.os }}-${{ matrix.target }}
+          name: wheels-${{ matrix.label }}
           path: wheels
 
   publish-pypi:

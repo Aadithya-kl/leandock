@@ -56,10 +56,7 @@ pub struct ServiceTuningPlan {
 }
 
 /// Computes a hardware-aware, non-destructive `OptimizationPlan` for all services.
-pub fn build_optimization_plan(
-    compose: &ParsedCompose,
-    opts: &TunerOptions,
-) -> OptimizationPlan {
+pub fn build_optimization_plan(compose: &ParsedCompose, opts: &TunerOptions) -> OptimizationPlan {
     let total_ram_mb = opts.effective_ram_mb.max(256);
     let os_reserve_mb = ((total_ram_mb as f64 * 0.15).round() as u64).max(384);
     let allocatable_ram_mb = total_ram_mb.saturating_sub(os_reserve_mb).max(256);
@@ -117,7 +114,8 @@ pub fn build_optimization_plan(
                 offloaded_static: true,
                 minified_image: None,
                 notes: vec![
-                    "Offloaded to LeanDock built-in Rust static server (`--extract-static`)".to_string(),
+                    "Offloaded to LeanDock built-in Rust static server (`--extract-static`)"
+                        .to_string(),
                 ],
             });
             continue;
@@ -125,11 +123,10 @@ pub fn build_optimization_plan(
 
         let mut notes = Vec::new();
         let w = *weights.get(name).unwrap_or(&2);
-        let raw_share_mb = if weight_sum > 0 {
-            (allocatable_ram_mb.saturating_mul(w)) / weight_sum
-        } else {
-            256
-        };
+        let raw_share_mb = allocatable_ram_mb
+            .saturating_mul(w)
+            .checked_div(weight_sum)
+            .unwrap_or(256);
 
         let floor_mb = minimum_service_ram_mb(svc.role, svc.db_kind);
         let ceiling_mb = maximum_service_ram_mb(svc.role, svc.db_kind, total_ram_mb);
@@ -253,7 +250,10 @@ pub fn render_override_yaml(plan: &OptimizationPlan) -> Result<String> {
 
         if svc.inject_log_rotation {
             let mut log_opts = Mapping::new();
-            log_opts.insert(Value::String("max-size".into()), Value::String("10m".into()));
+            log_opts.insert(
+                Value::String("max-size".into()),
+                Value::String("10m".into()),
+            );
             log_opts.insert(Value::String("max-file".into()), Value::String("3".into()));
 
             let mut logging = Mapping::new();
@@ -280,7 +280,10 @@ pub fn render_override_yaml(plan: &OptimizationPlan) -> Result<String> {
         }
 
         if let Some(ref min_img) = svc.minified_image {
-            entry.insert(Value::String("image".into()), Value::String(min_img.clone()));
+            entry.insert(
+                Value::String("image".into()),
+                Value::String(min_img.clone()),
+            );
         }
 
         if !entry.is_empty() {
@@ -403,10 +406,8 @@ fn tune_database_service(
         }
         DatabaseKind::RedisOrValkey => {
             let maxmemory_mb = ((budget_mb as f64 * 0.75).round() as u64).max(32);
-            let ephemeral = opts.ephemeral_cache
-                || svc
-                    .label_bool("leandock.redis.ephemeral")
-                    .unwrap_or(false);
+            let ephemeral =
+                opts.ephemeral_cache || svc.label_bool("leandock.redis.ephemeral").unwrap_or(false);
 
             let mut cmd = if existing_args.is_empty() {
                 vec!["redis-server".to_string()]

@@ -119,8 +119,14 @@ impl PlatformProfile {
         let os = detect_os();
         let is_root = detect_is_root();
         let can_sudo_noninteractive = detect_can_sudo();
-        let (distro, kernel_version, kernel_major_minor, systemd_version, virtualization, ksm_sysfs_writable) =
-            detect_platform_details(os);
+        let (
+            distro,
+            kernel_version,
+            kernel_major_minor,
+            systemd_version,
+            virtualization,
+            ksm_sysfs_writable,
+        ) = detect_platform_details(os);
 
         Self::from_facts(PlatformFacts {
             os,
@@ -359,24 +365,23 @@ fn detect_can_sudo() -> bool {
     false
 }
 
-#[cfg(target_os = "linux")]
-fn detect_platform_details(
-    _os: HostOs,
-) -> (
+/// `(platform label, distro version, kernel major/minor, systemd version, virtualization, is_root)`.
+type PlatformDetails = (
     String,
     Option<String>,
     Option<(u32, u32)>,
     Option<u32>,
     VirtualizationKind,
     bool,
-) {
+);
+
+#[cfg(target_os = "linux")]
+fn detect_platform_details(_os: HostOs) -> PlatformDetails {
     let distro = read_linux_distro();
     let kernel_version = std::fs::read_to_string("/proc/sys/kernel/osrelease")
         .ok()
         .map(|s| s.trim().to_string());
-    let kernel_major_minor = kernel_version
-        .as_deref()
-        .and_then(parse_kernel_major_minor);
+    let kernel_major_minor = kernel_version.as_deref().and_then(parse_kernel_major_minor);
     let systemd_version = std::process::Command::new("systemctl")
         .arg("--version")
         .output()
@@ -457,16 +462,7 @@ fn detect_linux_virtualization(kernel_release: &str) -> VirtualizationKind {
 }
 
 #[cfg(target_os = "windows")]
-fn detect_platform_details(
-    _os: HostOs,
-) -> (
-    String,
-    Option<String>,
-    Option<(u32, u32)>,
-    Option<u32>,
-    VirtualizationKind,
-    bool,
-) {
+fn detect_platform_details(_os: HostOs) -> PlatformDetails {
     (
         "Windows 10/11 (WSL2 Host)".to_string(),
         None,
@@ -478,16 +474,7 @@ fn detect_platform_details(
 }
 
 #[cfg(target_os = "macos")]
-fn detect_platform_details(
-    _os: HostOs,
-) -> (
-    String,
-    Option<String>,
-    Option<(u32, u32)>,
-    Option<u32>,
-    VirtualizationKind,
-    bool,
-) {
+fn detect_platform_details(_os: HostOs) -> PlatformDetails {
     let ver = std::process::Command::new("sw_vers")
         .arg("-productVersion")
         .output()
@@ -499,16 +486,7 @@ fn detect_platform_details(
 }
 
 #[cfg(not(any(target_os = "linux", target_os = "windows", target_os = "macos")))]
-fn detect_platform_details(
-    _os: HostOs,
-) -> (
-    String,
-    Option<String>,
-    Option<(u32, u32)>,
-    Option<u32>,
-    VirtualizationKind,
-    bool,
-) {
+fn detect_platform_details(_os: HostOs) -> PlatformDetails {
     (
         std::env::consts::OS.to_string(),
         None,

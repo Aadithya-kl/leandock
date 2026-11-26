@@ -51,7 +51,10 @@ fn non_destructive_override_preserves_original_file_and_v2_v3_limits() {
     let worker_plan = plan.services.iter().find(|s| s.name == "worker").unwrap();
     let fe_plan = plan.services.iter().find(|s| s.name == "frontend").unwrap();
 
-    assert!(api_plan.mem_limit_mb.is_none(), "must preserve v2 mem_limit");
+    assert!(
+        api_plan.mem_limit_mb.is_none(),
+        "must preserve v2 mem_limit"
+    );
     assert!(
         worker_plan.mem_limit_mb.is_none(),
         "must preserve v3 deploy.resources.limits.memory"

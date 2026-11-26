@@ -50,10 +50,9 @@ pub fn run_safe_cleanup(runtime_bin: &str, dry_run: bool) -> Result<CleanupRepor
             let stdout = String::from_utf8_lossy(&out.stdout);
             let mb = parse_reclaimed_mb(&stdout);
             report.reclaimed_build_cache_mb = mb;
-            report.notes.push(format!(
-                "Pruned unused build cache: {:.1} MB reclaimed",
-                mb
-            ));
+            report
+                .notes
+                .push(format!("Pruned unused build cache: {:.1} MB reclaimed", mb));
         }
     }
 

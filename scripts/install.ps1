@@ -1,7 +1,7 @@
 # LeanDock Windows Installer (PowerShell)
 $ErrorActionPreference = "Stop"
 
-$Repo = if ($env:LEANDOCK_REPO) { $env:LEANDOCK_REPO } else { "leandock/leandock" }
+$Repo = if ($env:LEANDOCK_REPO) { $env:LEANDOCK_REPO } else { "pvbang/leandock" }
 $InstallDir = if ($env:LEANDOCK_INSTALL_DIR) { $env:LEANDOCK_INSTALL_DIR } else { Join-Path $env:LOCALAPPDATA "LeanDock\bin" }
 $Version = if ($env:LEANDOCK_VERSION) { $env:LEANDOCK_VERSION } else { "latest" }
 
