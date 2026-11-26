@@ -24,7 +24,7 @@ use crate::proxy::start_proxy_daemon;
 use crate::report::{
     capture_benchmark_snapshot, collect_live_container_stats, format_analyze_json,
     format_benchmark_report, format_status_json, print_analyze_report, print_doctor_report,
-    print_status_report, OutputFormat,
+    print_status_report, try_collect_live_container_stats, OutputFormat,
 };
 
 #[derive(Debug, Parser)]
@@ -257,16 +257,23 @@ fn cmd_analyze(
 
     let plan = build_optimization_plan(&compose, &opts);
     let backup_mgr = BackupManager::default_for_host(profile.platform.is_root);
-    let host_preview = backup_mgr
+    let mut errors = Vec::new();
+    let host_preview = match backup_mgr
         .start_session()
-        .ok()
-        .and_then(|mut s| apply_host_tuning(&profile, cwd, &mut s, true).ok());
+        .and_then(|mut s| apply_host_tuning(&profile, cwd, &mut s, true))
+    {
+        Ok(report) => Some(report),
+        Err(e) => {
+            errors.push(format!("host tuning preview unavailable: {e:#}"));
+            None
+        }
+    };
 
     match format {
         ReportFormatArg::Text => print_analyze_report(&profile, &plan, host_preview.as_ref()),
         ReportFormatArg::Json => println!(
             "{}",
-            format_analyze_json(&profile, &plan, host_preview.as_ref())
+            format_analyze_json(&profile, &plan, host_preview.as_ref(), errors)?
         ),
     }
     Ok(())
@@ -579,11 +586,24 @@ fn cmd_status(format: ReportFormatArg) -> Result<()> {
         ContainerRuntimeKind::Podman => "podman",
         _ => "docker",
     };
-    let containers = collect_live_container_stats(runtime_bin);
     let kernel_stats = read_kernel_memory_stats();
     match format {
-        ReportFormatArg::Text => print_status_report(&containers, &kernel_stats),
-        ReportFormatArg::Json => println!("{}", format_status_json(&containers, &kernel_stats)),
+        ReportFormatArg::Text => {
+            print_status_report(&collect_live_container_stats(runtime_bin), &kernel_stats)
+        }
+        ReportFormatArg::Json => {
+            let (containers, errors) = match try_collect_live_container_stats(runtime_bin) {
+                Ok(rows) => (rows, Vec::new()),
+                Err(e) => (
+                    Vec::new(),
+                    vec![format!("container stats unavailable: {e:#}")],
+                ),
+            };
+            println!(
+                "{}",
+                format_status_json(&containers, &kernel_stats, errors)?
+            )
+        }
     }
     Ok(())
 }
