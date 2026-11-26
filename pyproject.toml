@@ -24,10 +24,10 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/leandock/leandock"
-Repository = "https://github.com/leandock/leandock"
-Documentation = "https://github.com/leandock/leandock/tree/main/docs"
-Changelog = "https://github.com/leandock/leandock/blob/main/CHANGELOG.md"
+Homepage = "https://github.com/pvbang/leandock"
+Repository = "https://github.com/pvbang/leandock"
+Documentation = "https://github.com/pvbang/leandock/tree/main/docs"
+Changelog = "https://github.com/pvbang/leandock/blob/main/CHANGELOG.md"
 
 [tool.maturin]
 bindings = "bin"

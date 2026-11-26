@@ -2,8 +2,8 @@
 
 **Drop-in, zero-config, non-destructive resource optimizer wrapper for Docker Compose — written in Rust.**
 
-[![CI](https://img.shields.io/github/actions/workflow/status/leandock/leandock/ci.yml?branch=main&label=CI%20%28Linux%20%7C%20macOS%20%7C%20Windows%29)](https://github.com/leandock/leandock/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/leandock/leandock?label=Release)](https://github.com/leandock/leandock/releases)
+[![CI](https://img.shields.io/github/actions/workflow/status/pvbang/leandock/ci.yml?branch=main&label=CI%20%28Linux%20%7C%20macOS%20%7C%20Windows%29)](https://github.com/pvbang/leandock/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/pvbang/leandock?label=Release)](https://github.com/pvbang/leandock/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Rust](https://img.shields.io/badge/Rust-1.78%2B-orange.svg)](https://www.rust-lang.org/)
 
@@ -153,17 +153,17 @@ uvx leandock up
 
 **Linux & macOS — 1-Line Installer (`x86_64` & `ARM64`, SHA256 verified):**
 ```bash
-curl -fsSL https://raw.githubusercontent.com/leandock/leandock/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/pvbang/leandock/main/scripts/install.sh | bash
 ```
 - Install without `sudo`: `LEANDOCK_INSTALL_DIR="$HOME/.local/bin" curl -fsSL ... | bash`
 - Also register as a Docker CLI plugin (`docker leandock up`):
   ```bash
-  curl -fsSL https://raw.githubusercontent.com/leandock/leandock/main/scripts/install.sh | bash -s -- --docker-plugin
+  curl -fsSL https://raw.githubusercontent.com/pvbang/leandock/main/scripts/install.sh | bash -s -- --docker-plugin
   ```
 
 **Windows — PowerShell Installer (SHA256 verified):**
 ```powershell
-irm https://raw.githubusercontent.com/leandock/leandock/main/scripts/install.ps1 | iex
+irm https://raw.githubusercontent.com/pvbang/leandock/main/scripts/install.ps1 | iex
 ```
 
 **Homebrew (macOS & Linux):**

@@ -1,0 +1,23 @@
+{
+  "version": "__VERSION__",
+  "description": "Drop-in, zero-config, non-destructive resource optimizer wrapper for Docker Compose",
+  "homepage": "https://github.com/pvbang/leandock",
+  "license": "MIT",
+  "architecture": {
+    "64bit": {
+      "url": "https://github.com/pvbang/leandock/releases/download/v__VERSION__/leandock-v__VERSION__-x86_64-pc-windows-msvc.zip",
+      "hash": "__SHA256_WINDOWS_X64__"
+    }
+  },
+  "bin": "leandock.exe",
+  "checkver": {
+    "github": "https://github.com/pvbang/leandock"
+  },
+  "autoupdate": {
+    "architecture": {
+      "64bit": {
+        "url": "https://github.com/pvbang/leandock/releases/download/v$version/leandock-v$version-x86_64-pc-windows-msvc.zip"
+      }
+    }
+  }
+}

@@ -19,7 +19,7 @@ function resolveBinaryPath() {
   if (!pkgName) {
     console.error(
       `[leandock] Unsupported platform/architecture: ${key}.\n` +
-        `Install from source instead: cargo install --git https://github.com/leandock/leandock`
+        `Install from source instead: cargo install --git https://github.com/pvbang/leandock`
     );
     process.exit(1);
   }
@@ -35,7 +35,7 @@ function resolveBinaryPath() {
         `If you installed with --no-optional or --omit=optional, reinstall without omitting optionalDependencies:\n` +
         `  npm install -g leandock\n` +
         `Or install the standalone binary directly:\n` +
-        `  curl -fsSL https://raw.githubusercontent.com/leandock/leandock/main/scripts/install.sh | bash`
+        `  curl -fsSL https://raw.githubusercontent.com/pvbang/leandock/main/scripts/install.sh | bash`
     );
     process.exit(1);
   }

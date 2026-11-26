@@ -90,7 +90,7 @@ for (const target of TARGETS) {
     license: "MIT",
     repository: {
       type: "git",
-      url: "https://github.com/leandock/leandock.git",
+      url: "https://github.com/pvbang/leandock.git",
     },
     os: [target.os],
     cpu: [target.cpu],
