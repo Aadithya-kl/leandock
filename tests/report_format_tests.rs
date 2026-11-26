@@ -375,6 +375,22 @@ fn cli_status_format_json_prints_only_json() {
 }
 
 #[test]
+fn cli_status_default_text_output_is_unchanged() {
+    let out = Command::cargo_bin("leandock")
+        .unwrap()
+        .arg("status")
+        .output()
+        .expect("run leandock status");
+    assert!(out.status.success(), "{out:?}");
+
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    assert!(stdout.contains("LeanDock Live Stack Status"));
+    assert!(stdout.contains("Container"));
+    assert!(stdout.contains("Wake-on-Request"));
+    assert!(serde_json::from_str::<Value>(&stdout).is_err());
+}
+
+#[test]
 fn cli_rejects_unknown_format() {
     Command::cargo_bin("leandock")
         .unwrap()
