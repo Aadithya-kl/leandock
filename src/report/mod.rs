@@ -5,9 +5,9 @@ use owo_colors::OwoColorize;
 use serde::{Deserialize, Serialize};
 
 use crate::postrun::KernelMemoryStats;
-use crate::prerun::db_tuner::OptimizationPlan;
+use crate::prerun::db_tuner::{OptimizationPlan, ServiceTuningPlan};
 use crate::prerun::host_tuner::HostTuningReport;
-use crate::profiler::{CapabilitySupport, HostProfile};
+use crate::profiler::{CapabilitySupport, HostOs, HostProfile, VirtualizationKind};
 
 /// Live per-container telemetry row displayed by `leandock status`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -47,6 +47,162 @@ pub enum OutputFormat {
     Json,
 }
 
+/// One row of the platform capability tier matrix shown by `leandock analyze`.
+#[derive(Debug, Clone, Serialize)]
+pub struct TierReport {
+    pub tier: u8,
+    pub capability: String,
+    pub status: CapabilitySupport,
+    pub details: String,
+}
+
+/// Host summary included in `leandock analyze --format json`.
+#[derive(Debug, Clone, Serialize)]
+pub struct AnalyzeHostSummary<'a> {
+    pub os: HostOs,
+    pub distro: &'a str,
+    pub cpu_arch: &'a str,
+    pub logical_cores: usize,
+    pub total_ram_mb: u64,
+    pub free_disk_gb: f64,
+    pub virtualization: VirtualizationKind,
+    pub compose_driver: String,
+    pub is_root: bool,
+}
+
+/// RAM budget summary included in `leandock analyze --format json`.
+#[derive(Debug, Clone, Serialize)]
+pub struct AnalyzeBudget {
+    pub effective_ram_mb: u64,
+    pub os_reserve_mb: u64,
+    pub allocatable_ram_mb: u64,
+    pub total_budgeted_mb: u64,
+    pub estimated_default_ram_mb: u64,
+    pub estimated_savings_mb: u64,
+}
+
+/// Machine-readable `leandock analyze --format json` report.
+#[derive(Debug, Clone, Serialize)]
+pub struct AnalyzeJsonReport<'a> {
+    pub host: AnalyzeHostSummary<'a>,
+    /// Highest tier N such that tiers 1..=N are all active (not auto-skipped).
+    pub detected_tier: u8,
+    pub tiers: Vec<TierReport>,
+    pub skipped_tiers: Vec<TierReport>,
+    pub budget: AnalyzeBudget,
+    pub services: &'a [ServiceTuningPlan],
+    pub host_preview: Option<&'a HostTuningReport>,
+    pub warnings: &'a [String],
+}
+
+/// Machine-readable `leandock status --format json` report.
+#[derive(Debug, Clone, Serialize)]
+pub struct StatusJsonReport<'a> {
+    pub containers: &'a [LiveContainerStat],
+    pub kernel: &'a KernelMemoryStats,
+}
+
+/// Returns the platform capability tier matrix for the detected host.
+pub fn capability_tiers(profile: &HostProfile) -> Vec<TierReport> {
+    let caps = &profile.platform.capabilities;
+    vec![
+        TierReport {
+            tier: 1,
+            capability: "Compose & DB Auto-Tuner + Log Cap + Cleanup".to_string(),
+            status: caps.tier1_compose_and_db,
+            details: "Active across all platforms".to_string(),
+        },
+        TierReport {
+            tier: 2,
+            capability: "Wake-on-Request Proxy & Static Offload".to_string(),
+            status: caps.tier2_wake_proxy,
+            details: "Cross-platform singleflight HTTP proxy".to_string(),
+        },
+        TierReport {
+            tier: 3,
+            capability: "Host Runtime & OS Tuning".to_string(),
+            status: caps.tier3_host_tuning,
+            details: caps.tier3_reason.clone(),
+        },
+        TierReport {
+            tier: 4,
+            capability: "Linux Kernel (zram, KSM, Quadlet)".to_string(),
+            status: caps.tier4_kernel_opt,
+            details: caps.tier4_reason.clone(),
+        },
+    ]
+}
+
+/// Builds the machine-readable report behind `leandock analyze --format json`.
+pub fn build_analyze_json_report<'a>(
+    profile: &'a HostProfile,
+    plan: &'a OptimizationPlan,
+    host_preview: Option<&'a HostTuningReport>,
+) -> AnalyzeJsonReport<'a> {
+    let tiers = capability_tiers(profile);
+    let detected_tier = tiers
+        .iter()
+        .take_while(|t| t.status != CapabilitySupport::Skipped)
+        .map(|t| t.tier)
+        .last()
+        .unwrap_or(0);
+    let skipped_tiers = tiers
+        .iter()
+        .filter(|t| t.status == CapabilitySupport::Skipped)
+        .cloned()
+        .collect();
+
+    AnalyzeJsonReport {
+        host: AnalyzeHostSummary {
+            os: profile.platform.os,
+            distro: &profile.platform.distro,
+            cpu_arch: &profile.hardware.cpu_arch,
+            logical_cores: profile.hardware.logical_cores,
+            total_ram_mb: profile.hardware.total_ram_mb,
+            free_disk_gb: profile.hardware.free_disk_gb,
+            virtualization: profile.platform.virtualization,
+            compose_driver: profile.runtime.compose_driver.to_string(),
+            is_root: profile.platform.is_root,
+        },
+        detected_tier,
+        tiers,
+        skipped_tiers,
+        budget: AnalyzeBudget {
+            effective_ram_mb: plan.effective_ram_mb,
+            os_reserve_mb: plan.os_reserve_mb,
+            allocatable_ram_mb: plan.allocatable_ram_mb,
+            total_budgeted_mb: plan.total_budgeted_mb,
+            estimated_default_ram_mb: plan.estimated_default_ram_mb,
+            estimated_savings_mb: plan.estimated_savings_mb,
+        },
+        services: &plan.services,
+        host_preview,
+        warnings: &plan.warnings,
+    }
+}
+
+/// Renders `leandock analyze --format json` as pretty-printed JSON.
+pub fn format_analyze_json(
+    profile: &HostProfile,
+    plan: &OptimizationPlan,
+    host_preview: Option<&HostTuningReport>,
+) -> String {
+    serde_json::to_string_pretty(&build_analyze_json_report(profile, plan, host_preview))
+        .unwrap_or_default()
+}
+
+/// Renders `leandock status --format json` as pretty-printed JSON.
+pub fn format_status_json(
+    containers: &[LiveContainerStat],
+    kernel_stats: &KernelMemoryStats,
+) -> String {
+    serde_json::to_string_pretty(&StatusJsonReport {
+        containers,
+        kernel: kernel_stats,
+    })
+    .unwrap_or_default()
+}
+
 /// Prints the zero-touch `leandock analyze` dry-run report.
 pub fn print_analyze_report(
     profile: &HostProfile,
@@ -82,31 +238,14 @@ pub fn print_analyze_report(
     let mut tier_table = Table::new();
     tier_table.load_preset(UTF8_FULL);
     tier_table.set_header(vec!["Tier", "Capability", "Status", "Details"]);
-    let caps = &profile.platform.capabilities;
-    tier_table.add_row(vec![
-        Cell::new("Tier 1"),
-        Cell::new("Compose & DB Auto-Tuner + Log Cap + Cleanup"),
-        support_cell(caps.tier1_compose_and_db),
-        Cell::new("Active across all platforms"),
-    ]);
-    tier_table.add_row(vec![
-        Cell::new("Tier 2"),
-        Cell::new("Wake-on-Request Proxy & Static Offload"),
-        support_cell(caps.tier2_wake_proxy),
-        Cell::new("Cross-platform singleflight HTTP proxy"),
-    ]);
-    tier_table.add_row(vec![
-        Cell::new("Tier 3"),
-        Cell::new("Host Runtime & OS Tuning"),
-        support_cell(caps.tier3_host_tuning),
-        Cell::new(&caps.tier3_reason),
-    ]);
-    tier_table.add_row(vec![
-        Cell::new("Tier 4"),
-        Cell::new("Linux Kernel (zram, KSM, Quadlet)"),
-        support_cell(caps.tier4_kernel_opt),
-        Cell::new(&caps.tier4_reason),
-    ]);
+    for tier in capability_tiers(profile) {
+        tier_table.add_row(vec![
+            Cell::new(format!("Tier {}", tier.tier)),
+            Cell::new(tier.capability),
+            support_cell(tier.status),
+            Cell::new(tier.details),
+        ]);
+    }
     println!("{tier_table}");
 
     println!("\n{}", "Proposed Service Optimizations".bold());
