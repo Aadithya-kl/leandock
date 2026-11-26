@@ -1,5 +1,8 @@
 blank_issues_enabled: false
 contact_links:
+  - name: Questions, ideas & show-and-tell
+    url: https://github.com/pvbang/leandock/discussions
+    about: Ask usage questions, share your setup or benchmark, or discuss an idea before filing an issue.
   - name: Documentation
     url: https://github.com/pvbang/leandock/tree/main/docs
     about: Architecture, optimization math, edge cases, benchmarks, limitations, and the roadmap.

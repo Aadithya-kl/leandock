@@ -55,4 +55,16 @@ Before opening a pull request, read the [Known Limitations](docs/LIMITATIONS.md)
 
 ## Cutting a Release (Maintainers)
 
-See [docs/PUBLISHING.md](docs/PUBLISHING.md) for the complete guide to configuring GitHub Releases, npm, PyPI, crates.io, Homebrew Tap, and Scoop Bucket.
+Releases are built and published by `.github/workflows/release.yml` when a `v*.*.*` tag is pushed:
+
+1. Bump the version in `Cargo.toml`, `pyproject.toml`, `packaging/npm/leandock/package.json` (including
+   every `optionalDependencies` entry), and `CHANGELOG.md`.
+2. Run the local verification checklist above.
+3. `git tag vX.Y.Z && git push origin main --tags`.
+4. Watch the Release workflow. Every publish step is idempotent — it skips versions that already exist on
+   npm, PyPI, and crates.io — so a failed run is fixed and resumed with **Re-run failed jobs** instead of
+   a new tag.
+
+Workflow secrets and variables: `NPM_TOKEN` (granular token with **Bypass 2FA** and access to both
+`leandock` and `@leandock/*`), `CARGO_REGISTRY_TOKEN`, and the `ENABLE_PYPI_PUBLISH` repository variable
+for PyPI Trusted Publishing. Homebrew/Scoop stay disabled while `TAP_PUSH_TOKEN` is unset.

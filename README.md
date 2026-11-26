@@ -552,9 +552,11 @@ All labels support both YAML mapping (`key: "value"`) and string-array (`"key=va
 
 New contributors are welcome. Issues labelled
 [`good first issue`](https://github.com/pvbang/leandock/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
-are self-contained, and every bug report template asks for the exact diagnostics maintainers need. If
-LeanDock saved your stack, the most useful thing you can do is publish a reproducible `leandock bench`
-result and link it from the release notes or an issue.
+are self-contained, and every bug report template asks for the exact diagnostics maintainers need. Usage
+questions, setup showcases, and benchmark results belong in
+[Discussions](https://github.com/pvbang/leandock/discussions). If LeanDock saved your stack, the most
+useful thing you can do is publish a reproducible `leandock bench` result and link it from the release
+notes or an issue.
 
 ## License
 
