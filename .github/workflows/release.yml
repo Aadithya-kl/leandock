@@ -162,8 +162,10 @@ jobs:
             echo "NPM_TOKEN not configured; skipping npm publish cleanly."
             exit 0
           fi
+          # Keep the "./" prefix: without it npm parses "npm-dist/x" as a
+          # GitHub shorthand (owner/repo) instead of a local folder.
           for dir in cli-linux-x64 cli-linux-arm64 cli-darwin-x64 cli-darwin-arm64 cli-win32-x64 leandock; do
-            npm publish "npm-dist/${dir}" --access public
+            npm publish "./npm-dist/${dir}" --access public
           done
 
   # ---------------------------------------------------------------------------
@@ -237,6 +239,8 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: wheels
+          # Keeps re-runs idempotent when some wheels were already published.
+          skip-existing: true
 
   # ---------------------------------------------------------------------------
   # 5. Publish to crates.io (`cargo install leandock` & `cargo binstall leandock`)
