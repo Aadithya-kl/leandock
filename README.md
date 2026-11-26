@@ -258,11 +258,12 @@ leandock analyze --format json > analyze.json
   "budget": { "effective_ram_mb": 2048, "os_reserve_mb": 384, "estimated_savings_mb": 512, "...": "..." },
   "services": [{ "name": "db", "role": "database", "ignored": false, "mem_limit_mb": 512, "mem_reservation_mb": 256, "notes": ["..."], "...": "..." }],
   "host_preview": { "applied": [], "skipped": ["..."], "warnings": [] },
-  "warnings": []
+  "warnings": [],
+  "errors": []
 }
 ```
 
-`detected_tier` is the highest tier N for which tiers 1..N are all active (`full` or `partial`); `skipped_tiers` lists auto-skipped tiers with the reason in `details`.
+`detected_tier` is the highest tier N for which tiers 1..N are all active (`full` or `partial`); `skipped_tiers` lists auto-skipped tiers with the reason in `details`. Service rows never include command lines or environment values, which can hold credentials: `tunes_command` says whether LeanDock tunes the command, and `extra_env_keys` lists only the names of injected variables. `errors` lists anything that could not be collected, such as the host tuning preview.
 
 You can also preview the full `up` pipeline (including Linux kernel `zram`/`KSM` eligibility) with:
 
@@ -486,14 +487,21 @@ With `--format json`:
 ```json
 {
   "containers": [
-    { "name": "api", "state": "running", "cpu_percent": "1.25%", "mem_usage": "48MiB / 256MiB", "idle_mode": "Wake Proxy: Active" }
+    {
+      "name": "api", "state": "running", "idle_mode": "Wake Proxy: Active",
+      "cpu_percent": 1.25, "mem_used_mb": 48.0, "mem_limit_mb": 256.0,
+      "cpu_text": "1.25%", "mem_text": "48MiB / 256MiB"
+    }
   ],
   "kernel": {
     "zram_active": true, "zram_orig_data_mb": 300.0, "zram_compr_data_mb": 100.0, "zram_ratio": 3.0,
     "ksm_active": true, "ksm_pages_sharing": 2560, "ksm_saved_mb": 10.0
-  }
+  },
+  "errors": []
 }
 ```
+
+CPU and memory are numbers (MiB), with the runtime's own text kept in `cpu_text` and `mem_text`; a number is `null` if that text could not be parsed. If the container runtime cannot be queried, `containers` is empty and `errors` says why.
 
 **Reproducible Before vs. After Benchmarks:**
 ```bash
