@@ -10,7 +10,10 @@ use leandock::profiler::platform::{
 use leandock::profiler::{
     ComposeDriver, ContainerRuntimeKind, HardwareInfo, HostProfile, RuntimeInfo,
 };
-use leandock::report::{format_analyze_json, format_status_json, LiveContainerStat};
+use leandock::report::{
+    format_analyze_json, format_status_json, parse_cpu_percent, parse_mem_usage_mb, parse_size_mb,
+    LiveContainerStat,
+};
 use serde_json::Value;
 
 const COMPOSE_YAML: &str = r#"
@@ -83,8 +86,10 @@ fn analyze_json_includes_tier_skipped_tiers_and_service_limits() {
         warnings: Vec::new(),
     };
 
-    let json: Value = serde_json::from_str(&format_analyze_json(&profile, &plan, Some(&preview)))
-        .expect("analyze output must be valid JSON");
+    let json: Value = serde_json::from_str(
+        &format_analyze_json(&profile, &plan, Some(&preview), Vec::new()).unwrap(),
+    )
+    .expect("analyze output must be valid JSON");
 
     assert_eq!(json["host"]["os"], "linux");
     assert_eq!(json["host"]["virtualization"], "lxc");
@@ -139,6 +144,75 @@ fn analyze_json_includes_tier_skipped_tiers_and_service_limits() {
         json["host_preview"]["skipped"][0],
         "non-root: daemon.json tuning skipped"
     );
+    assert_eq!(json["errors"], serde_json::json!([]));
+}
+
+#[test]
+fn analyze_json_never_contains_commands_or_env_values() {
+    let profile = lxc_non_root_profile();
+    let compose = ParsedCompose::from_yaml_str(COMPOSE_YAML, None).expect("parse compose");
+    let mut plan = build_optimization_plan(
+        &compose,
+        &TunerOptions {
+            effective_ram_mb: profile.effective_ram_mb(),
+            logical_cores: profile.hardware.logical_cores,
+            ..Default::default()
+        },
+    );
+    let cache = plan
+        .services
+        .iter_mut()
+        .find(|s| s.name == "cache")
+        .unwrap();
+    cache.tuned_command = Some(vec![
+        "redis-server".into(),
+        "--requirepass".into(),
+        "s3cr3t-pass".into(),
+    ]);
+    cache
+        .extra_env
+        .insert("REDIS_PASSWORD".into(), "s3cr3t-env".into());
+
+    let out = format_analyze_json(&profile, &plan, None, Vec::new()).unwrap();
+    assert!(
+        !out.contains("s3cr3t"),
+        "credentials leaked into JSON: {out}"
+    );
+    assert!(!out.contains("requirepass"));
+
+    let json: Value = serde_json::from_str(&out).unwrap();
+    let row = json["services"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["name"] == "cache")
+        .unwrap();
+    assert_eq!(row["tunes_command"], true);
+    assert_eq!(row["extra_env_keys"], serde_json::json!(["REDIS_PASSWORD"]));
+    assert!(row.get("tuned_command").is_none());
+    assert!(row.get("extra_env").is_none());
+}
+
+#[test]
+fn analyze_json_reports_collection_errors() {
+    let profile = lxc_non_root_profile();
+    let compose = ParsedCompose::from_yaml_str(COMPOSE_YAML, None).expect("parse compose");
+    let plan = build_optimization_plan(&compose, &TunerOptions::default());
+    let json: Value = serde_json::from_str(
+        &format_analyze_json(
+            &profile,
+            &plan,
+            None,
+            vec!["host tuning preview unavailable: boom".into()],
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(json["host_preview"], Value::Null);
+    assert_eq!(
+        json["errors"],
+        serde_json::json!(["host tuning preview unavailable: boom"])
+    );
 }
 
 #[test]
@@ -169,14 +243,19 @@ fn status_json_includes_containers_kernel_stats_and_wake_states() {
         ksm_saved_mb: 10.0,
     };
 
-    let json: Value = serde_json::from_str(&format_status_json(&containers, &kernel))
-        .expect("status output must be valid JSON");
+    let json: Value =
+        serde_json::from_str(&format_status_json(&containers, &kernel, Vec::new()).unwrap())
+            .expect("status output must be valid JSON");
 
     let rows = json["containers"].as_array().expect("containers array");
     assert_eq!(rows.len(), 2);
     assert_eq!(rows[0]["name"], "api");
-    assert_eq!(rows[0]["cpu_percent"], "1.25%");
-    assert_eq!(rows[0]["mem_usage"], "48MiB / 256MiB");
+    assert_eq!(rows[0]["cpu_percent"], 1.25);
+    assert_eq!(rows[0]["mem_used_mb"], 48.0);
+    assert_eq!(rows[0]["mem_limit_mb"], 256.0);
+    assert_eq!(rows[0]["cpu_text"], "1.25%");
+    assert_eq!(rows[0]["mem_text"], "48MiB / 256MiB");
+    assert_eq!(rows[1]["mem_used_mb"], 0.0);
     assert_eq!(rows[0]["idle_mode"], "Wake Proxy: Active");
     assert_eq!(rows[1]["idle_mode"], "Wake Proxy: Sleeping (0 MB)");
 
@@ -185,12 +264,48 @@ fn status_json_includes_containers_kernel_stats_and_wake_states() {
     assert_eq!(json["kernel"]["ksm_active"], true);
     assert_eq!(json["kernel"]["ksm_pages_sharing"], 2560);
     assert_eq!(json["kernel"]["ksm_saved_mb"], 10.0);
+    assert_eq!(json["errors"], serde_json::json!([]));
+}
+
+#[test]
+fn status_json_reports_runtime_errors() {
+    let json: Value = serde_json::from_str(
+        &format_status_json(
+            &[],
+            &KernelMemoryStats::default(),
+            vec!["container stats unavailable: docker not found".into()],
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    assert_eq!(json["containers"], serde_json::json!([]));
+    assert_eq!(json["errors"].as_array().unwrap().len(), 1);
+}
+
+#[test]
+fn parses_docker_stats_numbers() {
+    assert_eq!(parse_cpu_percent("1.25%"), Some(1.25));
+    assert_eq!(parse_cpu_percent(" 0.00% "), Some(0.0));
+    assert_eq!(parse_cpu_percent("--"), None);
+    assert_eq!(parse_size_mb("48MiB"), Some(48.0));
+    assert_eq!(parse_size_mb("1.5GiB"), Some(1536.0));
+    assert_eq!(parse_size_mb("512KiB"), Some(0.5));
+    assert_eq!(parse_size_mb("0B"), Some(0.0));
+    assert_eq!(parse_size_mb("2MB"), Some(2e6 / 1048576.0));
+    assert_eq!(parse_size_mb("12parsecs"), None);
+    assert_eq!(
+        parse_mem_usage_mb("48MiB / 256MiB"),
+        (Some(48.0), Some(256.0))
+    );
+    assert_eq!(parse_mem_usage_mb("--"), (None, None));
 }
 
 #[test]
 fn status_json_with_no_containers_is_still_valid() {
-    let json: Value =
-        serde_json::from_str(&format_status_json(&[], &KernelMemoryStats::default())).unwrap();
+    let json: Value = serde_json::from_str(
+        &format_status_json(&[], &KernelMemoryStats::default(), Vec::new()).unwrap(),
+    )
+    .unwrap();
     assert_eq!(json["containers"], serde_json::json!([]));
     assert_eq!(json["kernel"]["zram_active"], false);
     assert_eq!(json["kernel"]["ksm_active"], false);
@@ -256,6 +371,7 @@ fn cli_status_format_json_prints_only_json() {
     assert!(json["containers"].is_array());
     assert!(json["kernel"]["zram_active"].is_boolean());
     assert!(json["kernel"]["ksm_active"].is_boolean());
+    assert!(json["errors"].is_array());
 }
 
 #[test]
