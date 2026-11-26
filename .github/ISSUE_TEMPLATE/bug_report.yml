@@ -1,0 +1,110 @@
+name: Bug report
+description: Report a crash, a broken deployment, or an optimization that made a service unhealthy
+title: "[bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a report. LeanDock edits host configuration, so accurate
+        environment details matter.
+
+        If this is a **security issue**, do not open a public issue — follow the
+        [security policy](https://github.com/pvbang/leandock/blob/main/SECURITY.md).
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Pre-flight checks
+      options:
+        - label: I searched existing issues and this is not a duplicate.
+          required: true
+        - label: I removed secrets, tokens, and private hostnames from everything I paste below.
+          required: true
+        - label: I reproduced this on a clean stack, or explained below why that was not possible.
+          required: false
+
+  - type: input
+    id: version
+    attributes:
+      label: LeanDock version
+      description: Output of `leandock --version`
+      placeholder: leandock 0.2.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - Linux VPS (KVM / bare metal / Xen / VMware)
+        - Linux container VPS (OpenVZ / unprivileged LXC)
+        - Windows 10/11 (WSL2)
+        - macOS (Docker Desktop / OrbStack / Colima / Lima)
+        - Other (describe below)
+    validations:
+      required: true
+
+  - type: textarea
+    id: doctor
+    attributes:
+      label: Environment diagnostics
+      description: Paste the output of `leandock doctor` (remove private paths and hostnames).
+      render: text
+    validations:
+      required: true
+
+  - type: input
+    id: engine
+    attributes:
+      label: Container engine and Compose version
+      description: For example `Docker 27.3 + Compose v2.29` or `Podman 5.2`
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. cd examples/fullstack-mongo-api
+        2. leandock up
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected vs. actual behaviour
+    validations:
+      required: true
+
+  - type: textarea
+    id: compose
+    attributes:
+      label: Minimal Compose snippet (sanitized)
+      description: The smallest service block that reproduces the problem, including any `leandock.*` labels.
+      render: yaml
+    validations:
+      required: false
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: |
+        Prefer `RUST_LOG=debug leandock up 2>&1 | tail -n 100` plus the last 30 lines of the affected
+        container (`docker logs <service> --tail 30`).
+      render: text
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: hostchanges
+    attributes:
+      label: Host changes in this run
+      options:
+        - label: LeanDock modified host files (`/etc/docker/daemon.json`, zram/KSM units, `.wslconfig`).
+        - label: I ran `leandock revert` and the host is back to its previous state.

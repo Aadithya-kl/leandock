@@ -1,0 +1,83 @@
+name: Feature request
+description: Propose a new capability, integration, or safety improvement
+title: "[feat]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        LeanDock is deliberately conservative: an optimization that might break a running stack should be
+        skipped, not attempted. Requests that respect the three oaths in
+        [CONTRIBUTING.md](https://github.com/pvbang/leandock/blob/main/CONTRIBUTING.md) are the easiest to accept.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Pre-flight checks
+      options:
+        - label: I searched existing issues and discussions for this idea.
+          required: true
+        - label: This request does not require users to edit their Compose file or Dockerfile.
+          required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What are you unable to do today? Describe the real workload, not just the missing flag.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: CLI surface, labels, or behaviour you expect. Include an example command if relevant.
+      render: shell
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Manual configuration, other tools, or why a documentation change is not enough.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Main area
+      multiple: true
+      options:
+        - Compose / DB auto-tuner
+        - Host tuning (daemon.json, .wslconfig, macOS)
+        - Linux kernel (zram, KSM) or Podman Quadlet
+        - Wake-on-Request proxy
+        - CLI, reporting, benchmarks
+        - Packaging, installers, docs
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platforms
+    attributes:
+      label: Platforms this affects
+      multiple: true
+      options:
+        - Linux (KVM / bare metal)
+        - Linux (OpenVZ / LXC)
+        - Windows (WSL2)
+        - macOS
+        - All platforms
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      options:
+        - label: I am willing to open a pull request for this (with guidance).
+        - label: I can test a proposed implementation on my environment.

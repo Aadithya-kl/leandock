@@ -1,20 +1,23 @@
 # LeanDock (`leandock`)
 
-**Drop-in, zero-config, non-destructive resource optimizer wrapper for Docker Compose — written in Rust.**
+**Drop-in, zero-config, non-destructive resource optimizer wrapper for Docker Compose - written in Rust.**
 
 [![CI](https://img.shields.io/github/actions/workflow/status/pvbang/leandock/ci.yml?branch=main&label=CI%20%28Linux%20%7C%20macOS%20%7C%20Windows%29)](https://github.com/pvbang/leandock/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/pvbang/leandock?label=Release)](https://github.com/pvbang/leandock/releases)
+[![npm](https://img.shields.io/npm/v/leandock?logo=npm&label=npm)](https://www.npmjs.com/package/leandock)
+[![PyPI](https://img.shields.io/pypi/v/leandock?logo=pypi&label=PyPI)](https://pypi.org/project/leandock/)
+[![crates.io](https://img.shields.io/crates/v/leandock?logo=rust&label=crates.io)](https://crates.io/crates/leandock)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Rust](https://img.shields.io/badge/Rust-1.78%2B-orange.svg)](https://www.rust-lang.org/)
 
-Clone any existing Dockerized project, run `leandock up` instead of `docker compose up -d`, and keep your **exact working application** with dramatically lower RAM, SSD, and background overhead — automatically tailored to your OS, CPU architecture (`x86_64` / `aarch64`), virtualization layer, and hardware limits.
+Clone any existing Dockerized project, run `leandock up` instead of `docker compose up -d`, and keep your **exact working application** with dramatically lower RAM, SSD, and background overhead - automatically tailored to your OS, CPU architecture (`x86_64` / `aarch64`), virtualization layer, and hardware limits.
 
 ---
 
 ## Table of Contents
 
 - [Why LeanDock Exists](#why-leandock-exists)
-- [What LeanDock Does — and What It Doesn't Do](#what-leandock-does--and-what-it-doesnt-do)
+- [What LeanDock Does - and What It Doesn't Do](#what-leandock-does--and-what-it-doesnt-do)
 - [Supported Platforms & Capability Matrix](#supported-platforms--capability-matrix)
 - [When to Use (and When NOT to Use) LeanDock](#when-to-use-and-when-not-to-use-leandock)
 - [Architecture Overview](#architecture-overview)
@@ -44,7 +47,7 @@ Clone any existing Dockerized project, run `leandock up` instead of `docker comp
 
 Docker Compose solved the hardest workflow problem in modern software engineering: you can clone a repository onto a brand-new server or laptop, run `docker compose up -d`, and have your entire stack (databases, APIs, caches, workers, frontend) running cleanly in seconds.
 
-**The painful catch:** Running that convenient stack with default settings wastes massive amounts of RAM, CPU, and disk space — especially on budget VPS instances (1 GB – 8 GB RAM) and developer laptops:
+**The painful catch:** Running that convenient stack with default settings wastes massive amounts of RAM, CPU, and disk space - especially on budget VPS instances (1 GB – 8 GB RAM) and developer laptops:
 
 - **On Linux VPS:** Containers are already native Linux processes (no VM), yet default configurations still waste resources heavily: `dockerd` eats ~140–180 MB idle RAM, `docker-proxy` spawns extra userland processes per published port, databases inside containers greedily reserve huge host-proportional caches (for example, MongoDB WiredTiger grabbing 50% of `RAM - 1 GB`), JSON logs grow without bound until the disk fills, dangling build layers eat gigabytes of SSD, modern Linux kernel memory features (`zram`, `KSM`) sit unused, and low-traffic services burn RAM 24/7 while idle.
 - **On Windows (WSL2) & macOS:** Developers suffer double overhead: a Linux VM layer (such as `VmmemWSL` holding 50% of host RAM without reclaiming it) stacked on top of greedy default database containers and bloated build caches.
@@ -59,9 +62,9 @@ Developers shouldn't have to abandon Docker Compose, maintain fragile native ins
 
 ---
 
-## What LeanDock Does — and What It Doesn't Do
+## What LeanDock Does - and What It Doesn't Do
 
-LeanDock is built on honest, verifiable systems engineering — zero hype and zero cargo-cult tweaks:
+LeanDock is built on honest, verifiable systems engineering - zero hype and zero cargo-cult tweaks:
 
 - **What LeanDock DOES:**
   - Probes your OS, CPU architecture (`x86_64` / `aarch64`), RAM, swap, free disk, virtualization type, kernel/systemd version, and installed container runtimes.
@@ -73,7 +76,7 @@ LeanDock is built on honest, verifiable systems engineering — zero hype and ze
   - Verifies every started container during a post-deploy stability window and **automatically rolls back** to your unmodified Compose file if any service crash-loops.
   - Runs an async Hyper v1 **Wake-on-Request reverse proxy** (`leandock proxy`) with singleflight coordination that stops idle containers (`0 MB RAM`) and transparently wakes them on incoming HTTP traffic.
 - **What LeanDock DOES NOT do:**
-  - It does **not** claim to remove a Linux Docker VM — containers on Linux are already native processes.
+  - It does **not** claim to remove a Linux Docker VM - containers on Linux are already native processes.
   - It does **not** use fragile CRIU checkpoint/restore for container sleeping.
   - It does **not** delete named volumes, bind mounts, or active tagged images during cleanup.
   - It does **not** touch any container labeled `leandock.ignore=true`.
@@ -84,7 +87,7 @@ LeanDock is built on honest, verifiable systems engineering — zero hype and ze
 
 | Environment / Platform | Tier 1: Compose & DB Auto-Tuner + Log Cap + Cleanup | Tier 2: Wake-on-Request Proxy & Static Offload | Tier 3: Host Runtime & OS Tuning | Tier 4: Linux Kernel (`zram`, `KSM`, `Quadlet`) |
 |---|---|---|---|---|
-| **Linux VPS (KVM / Bare-metal / Xen / VMware)** *(Ubuntu, Debian, Rocky, Alpine, Arch — x86_64 & ARM64)* | **Full** | **Full** (Unix Socket) | **Full** (`daemon.json`: `userland-proxy=false`, log rotation, `live-restore`) | **Full** (`zram` zstd, `KSM` on kernel >= 6.1 + systemd >= 254, Quadlet) |
+| **Linux VPS (KVM / Bare-metal / Xen / VMware)** *(Ubuntu, Debian, Rocky, Alpine, Arch - x86_64 & ARM64)* | **Full** | **Full** (Unix Socket) | **Full** (`daemon.json`: `userland-proxy=false`, log rotation, `live-restore`) | **Full** (`zram` zstd, `KSM` on kernel >= 6.1 + systemd >= 254, Quadlet) |
 | **Linux Container VPS (OpenVZ / Unprivileged LXC)** | **Full** | **Full** (Unix Socket) | **Partial** (`daemon.json` if root) | **Auto-Skipped** cleanly (read-only `/sys` / no `modprobe`) |
 | **Windows 10/11 (WSL2 + Docker Desktop / Rancher / Native WSL Docker)** | **Full** | **Full** (CLI/HTTP adapter) | **Full** (safe `.wslconfig` tuning + `/mnt/c` I/O warning) | **Auto-Skipped** cleanly |
 | **macOS (Apple Silicon ARM64 & Intel x86_64)** *(Docker Desktop, OrbStack, Colima, Lima)* | **Full** | **Full** (Unix / OrbStack / Colima Socket) | **Partial** (detects active VM runtime & reports VM RAM guidance) | **Auto-Skipped** cleanly |
@@ -129,7 +132,7 @@ flowchart TD
 
 ## Installation
 
-Choose whichever channel fits your machine — **zero compilation required**, every channel runs the exact same native Rust binary.
+Choose whichever channel fits your machine - **zero compilation required**, every channel runs the exact same native Rust binary.
 
 ### Try Instantly Without Installing (Zero-Install)
 
@@ -151,7 +154,7 @@ uvx leandock up
 
 ### Install Globally (Recommended for VPS & Daily Use)
 
-**Linux & macOS — 1-Line Installer (`x86_64` & `ARM64`, SHA256 verified):**
+**Linux & macOS - 1-Line Installer (`x86_64` & `ARM64`, SHA256 verified):**
 ```bash
 curl -fsSL https://raw.githubusercontent.com/pvbang/leandock/main/scripts/install.sh | bash
 ```
@@ -161,7 +164,7 @@ curl -fsSL https://raw.githubusercontent.com/pvbang/leandock/main/scripts/instal
   curl -fsSL https://raw.githubusercontent.com/pvbang/leandock/main/scripts/install.sh | bash -s -- --docker-plugin
   ```
 
-**Windows — PowerShell Installer (SHA256 verified):**
+**Windows - PowerShell Installer (SHA256 verified):**
 ```powershell
 irm https://raw.githubusercontent.com/pvbang/leandock/main/scripts/install.ps1 | iex
 ```
@@ -231,7 +234,7 @@ leandock revert
 
 ### 1. Inspect Before Touching Anything (`leandock analyze`)
 
-`leandock analyze` is **strictly zero-touch** — it reads your Compose file and host hardware without creating `.leandock/` or modifying any host configuration:
+`leandock analyze` is **strictly zero-touch** - it reads your Compose file and host hardware without creating `.leandock/` or modifying any host configuration:
 
 ```bash
 # Auto-discovers compose.yaml, compose.yml, docker-compose.yaml, or docker-compose.yml
@@ -332,7 +335,7 @@ systemctl --user start leandock-api.service
 
 Sleep low-traffic apps, staging environments, and internal tools down to **0 MB RAM** after an idle window and wake them automatically on the first incoming HTTP request. Concurrent requests are coalesced via **singleflight** so 50 simultaneous requests trigger exactly one container start.
 
-**Step 1 — Label services in your `docker-compose.yml`:**
+**Step 1 - Label services in your `docker-compose.yml`:**
 ```yaml
 services:
   staging-app:
@@ -347,7 +350,7 @@ services:
       leandock.idle.wake_timeout: "30s"
 ```
 
-**Step 2 — Start your stack and launch the proxy:**
+**Step 2 - Start your stack and launch the proxy:**
 ```bash
 leandock up
 leandock proxy
@@ -363,7 +366,7 @@ leandock proxy --port-map staging-app:8081:13000:10m
 leandock proxy --install-service
 systemctl --user daemon-reload && systemctl --user enable --now leandock-proxy.service
 ```
-*(Backed up transactionally — `leandock revert` stops and removes the service automatically.)*
+*(Backed up transactionally - `leandock revert` stops and removes the service automatically.)*
 
 See [`examples/wake-on-request-demo/docker-compose.yml`](examples/wake-on-request-demo/docker-compose.yml) for a runnable example.
 
@@ -411,7 +414,7 @@ LeanDock only minifies eligible non-database, non-ignored application images, bo
 ### 9. Redis / Valkey Data Safety vs. Ephemeral Cache Mode
 
 - **Default Mode (Persistence-Safe):** LeanDock **never** silently injects `--save ""` or `allkeys-lru` on Redis or Valkey, because doing so would silently destroy persistent background job queues (BullMQ, Sidekiq, Celery). By default, LeanDock only caps `--maxmemory <val>mb` with `noeviction` and leaves RDB/AOF intact.
-- **Ephemeral Cache Mode (Explicit Opt-In):** Enable LRU eviction and disable disk snapshots only when you explicitly intend Redis/Valkey to act as a pure disposable cache — either per-service via label or globally via flag:
+- **Ephemeral Cache Mode (Explicit Opt-In):** Enable LRU eviction and disable disk snapshots only when you explicitly intend Redis/Valkey to act as a pure disposable cache - either per-service via label or globally via flag:
   ```yaml
   services:
     cache:
@@ -494,10 +497,10 @@ See [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) for methodology details.
 | `leandock down` | `-f <PATH>`, `--engine docker\|podman` | Stops and removes the Compose stack cleanly. |
 | `leandock proxy` | `--port-map <svc:listen:target[:timeout]>`, `--install-service` | Runs the cross-platform Hyper v1 Wake-on-Request reverse proxy & static server (or installs `leandock-proxy.service` on Linux). |
 | `leandock quadlet` | `-f <PATH>`, `-o, --output <DIR>` (default `.leandock/quadlet`) | Exports daemonless systemd Quadlet `.container` units for Linux Podman. |
-| `leandock status` | — | Live container RAM/CPU, `zram` compression stats, `KSM` deduplicated RAM, and Wake-on-Request Active/Sleeping states. |
+| `leandock status` | - | Live container RAM/CPU, `zram` compression stats, `KSM` deduplicated RAM, and Wake-on-Request Active/Sleeping states. |
 | `leandock bench` | `-f <PATH>`, `--format table\|markdown\|json` (default `table`), `--settle-secs <SECS>` (default `8`) | Captures reproducible Before vs. After resource metrics (RAM, Swap/zram, Disk, Processes, Startup ms). |
 | `leandock revert` | `--all` | Restores backed-up host configs, tears down live zram/KSM/proxy unit if applied, reloads services, and removes `.leandock/`. |
-| `leandock doctor` | — | Full cross-platform environment diagnostic (OS tier, virtualization, kernel/systemd, sockets, helpers, permissions). |
+| `leandock doctor` | - | Full cross-platform environment diagnostic (OS tier, virtualization, kernel/systemd, sockets, helpers, permissions). |
 
 ---
 
@@ -539,10 +542,20 @@ All labels support both YAML mapping (`key: "value"`) and string-array (`"key=va
 - [Technical Architecture & Cross-Platform Traits](docs/ARCHITECTURE.md)
 - [Optimization Math & Linux Kernel Mechanics](docs/OPTIMIZATIONS.md)
 - [Edge Cases, Virtualization & Rollback Guarantees](docs/EDGE_CASES.md)
+- [Known Limitations](docs/LIMITATIONS.md)
+- [Roadmap](docs/ROADMAP.md)
 - [Reproducible Benchmark Methodology](docs/BENCHMARKS.md)
 - [Changelog](CHANGELOG.md)
 - [Contributing Guide](CONTRIBUTING.md)
+- [Security Policy](SECURITY.md)
+- [Code of Conduct](CODE_OF_CONDUCT.md)
+
+New contributors are welcome. Issues labelled
+[`good first issue`](https://github.com/pvbang/leandock/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
+are self-contained, and every bug report template asks for the exact diagnostics maintainers need. If
+LeanDock saved your stack, the most useful thing you can do is publish a reproducible `leandock bench`
+result and link it from the release notes or an issue.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT - see [LICENSE](LICENSE).

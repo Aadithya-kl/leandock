@@ -1,0 +1,11 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://github.com/pvbang/leandock/tree/main/docs
+    about: Architecture, optimization math, edge cases, benchmarks, limitations, and the roadmap.
+  - name: Troubleshooting & FAQ
+    url: https://github.com/pvbang/leandock#troubleshooting--faq
+    about: Skipped DB tuning, KSM prerequisites, cleanup guarantees, and how to fully uninstall.
+  - name: Security policy
+    url: https://github.com/pvbang/leandock/blob/main/SECURITY.md
+    about: Report vulnerabilities privately instead of opening a public issue.
