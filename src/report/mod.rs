@@ -5,6 +5,7 @@ use owo_colors::OwoColorize;
 use serde::{Deserialize, Serialize};
 
 use crate::postrun::KernelMemoryStats;
+use crate::prerun::compose_parser::{DatabaseKind, ServiceRole};
 use crate::prerun::db_tuner::{OptimizationPlan, ServiceTuningPlan};
 use crate::prerun::host_tuner::HostTuningReport;
 use crate::profiler::{CapabilitySupport, HostOs, HostProfile, VirtualizationKind};
@@ -81,6 +82,46 @@ pub struct AnalyzeBudget {
     pub estimated_savings_mb: u64,
 }
 
+/// One service row in `leandock analyze --format json`.
+///
+/// A dedicated projection of `ServiceTuningPlan`, so the published JSON schema does not change when the
+/// internal tuning model does. Command lines and environment values are left out because they can carry
+/// credentials (`--requirepass ...`, `POSTGRES_PASSWORD=...`); only the injected environment *names* are listed.
+#[derive(Debug, Clone, Serialize)]
+pub struct ServiceJson {
+    pub name: String,
+    pub role: ServiceRole,
+    pub db_kind: Option<DatabaseKind>,
+    pub ignored: bool,
+    pub mem_limit_mb: Option<u64>,
+    pub mem_reservation_mb: Option<u64>,
+    pub inject_log_rotation: bool,
+    pub tunes_command: bool,
+    pub extra_env_keys: Vec<String>,
+    pub offloaded_static: bool,
+    pub minified_image: Option<String>,
+    pub notes: Vec<String>,
+}
+
+impl From<&ServiceTuningPlan> for ServiceJson {
+    fn from(svc: &ServiceTuningPlan) -> Self {
+        Self {
+            name: svc.name.clone(),
+            role: svc.role,
+            db_kind: svc.db_kind,
+            ignored: svc.ignored,
+            mem_limit_mb: svc.mem_limit_mb,
+            mem_reservation_mb: svc.mem_reservation_mb,
+            inject_log_rotation: svc.inject_log_rotation,
+            tunes_command: svc.tuned_command.is_some(),
+            extra_env_keys: svc.extra_env.keys().cloned().collect(),
+            offloaded_static: svc.offloaded_static,
+            minified_image: svc.minified_image.clone(),
+            notes: svc.notes.clone(),
+        }
+    }
+}
+
 /// Machine-readable `leandock analyze --format json` report.
 #[derive(Debug, Clone, Serialize)]
 pub struct AnalyzeJsonReport<'a> {
@@ -90,16 +131,90 @@ pub struct AnalyzeJsonReport<'a> {
     pub tiers: Vec<TierReport>,
     pub skipped_tiers: Vec<TierReport>,
     pub budget: AnalyzeBudget,
-    pub services: &'a [ServiceTuningPlan],
+    pub services: Vec<ServiceJson>,
     pub host_preview: Option<&'a HostTuningReport>,
     pub warnings: &'a [String],
+    /// Data that could not be collected (for example a failed host-tuning preview), so callers can
+    /// tell a missing section from an empty one.
+    pub errors: Vec<String>,
+}
+
+/// One container row in `leandock status --format json`, with numeric CPU and memory values next to
+/// the runtime's formatted text. A number is `null` when the runtime's text could not be parsed.
+#[derive(Debug, Clone, Serialize)]
+pub struct ContainerJson {
+    pub name: String,
+    pub state: String,
+    pub idle_mode: String,
+    pub cpu_percent: Option<f64>,
+    pub mem_used_mb: Option<f64>,
+    pub mem_limit_mb: Option<f64>,
+    pub cpu_text: String,
+    pub mem_text: String,
+}
+
+impl From<&LiveContainerStat> for ContainerJson {
+    fn from(c: &LiveContainerStat) -> Self {
+        let (used, limit) = parse_mem_usage_mb(&c.mem_usage);
+        Self {
+            name: c.name.clone(),
+            state: c.state.clone(),
+            idle_mode: c.idle_mode.clone(),
+            cpu_percent: parse_cpu_percent(&c.cpu_percent),
+            mem_used_mb: used,
+            mem_limit_mb: limit,
+            cpu_text: c.cpu_percent.clone(),
+            mem_text: c.mem_usage.clone(),
+        }
+    }
 }
 
 /// Machine-readable `leandock status --format json` report.
 #[derive(Debug, Clone, Serialize)]
 pub struct StatusJsonReport<'a> {
-    pub containers: &'a [LiveContainerStat],
+    pub containers: Vec<ContainerJson>,
     pub kernel: &'a KernelMemoryStats,
+    /// Data that could not be collected (for example the container runtime query failing), so an
+    /// empty `containers` list is not mistaken for "no containers".
+    pub errors: Vec<String>,
+}
+
+/// Parses `docker stats` CPU text such as `"1.25%"`.
+pub fn parse_cpu_percent(text: &str) -> Option<f64> {
+    text.trim()
+        .strip_suffix('%')
+        .and_then(|n| n.trim().parse::<f64>().ok())
+        .filter(|v| v.is_finite())
+}
+
+/// Parses a `docker stats` size such as `"48MiB"`, `"1.5GiB"`, `"512kB"` or `"0B"` into MiB.
+pub fn parse_size_mb(text: &str) -> Option<f64> {
+    let t = text.trim();
+    let split = t.find(|c: char| c.is_ascii_alphabetic()).unwrap_or(t.len());
+    let (num, unit) = t.split_at(split);
+    let value: f64 = num.trim().parse().ok()?;
+    let bytes = match unit.trim() {
+        "B" | "" => 1.0,
+        "KiB" => 1024.0,
+        "MiB" => 1024.0 * 1024.0,
+        "GiB" => 1024.0 * 1024.0 * 1024.0,
+        "TiB" => 1024.0_f64.powi(4),
+        "kB" | "KB" => 1e3,
+        "MB" => 1e6,
+        "GB" => 1e9,
+        "TB" => 1e12,
+        _ => return None,
+    };
+    let mb = value * bytes / (1024.0 * 1024.0);
+    mb.is_finite().then_some(mb)
+}
+
+/// Parses `docker stats` memory text such as `"48MiB / 256MiB"` into (used, limit) MiB.
+pub fn parse_mem_usage_mb(text: &str) -> (Option<f64>, Option<f64>) {
+    match text.split_once('/') {
+        Some((used, limit)) => (parse_size_mb(used), parse_size_mb(limit)),
+        None => (parse_size_mb(text), None),
+    }
 }
 
 /// Returns the platform capability tier matrix for the detected host.
@@ -138,6 +253,7 @@ pub fn build_analyze_json_report<'a>(
     profile: &'a HostProfile,
     plan: &'a OptimizationPlan,
     host_preview: Option<&'a HostTuningReport>,
+    errors: Vec<String>,
 ) -> AnalyzeJsonReport<'a> {
     let tiers = capability_tiers(profile);
     let detected_tier = tiers
@@ -175,9 +291,10 @@ pub fn build_analyze_json_report<'a>(
             estimated_default_ram_mb: plan.estimated_default_ram_mb,
             estimated_savings_mb: plan.estimated_savings_mb,
         },
-        services: &plan.services,
+        services: plan.services.iter().map(ServiceJson::from).collect(),
         host_preview,
         warnings: &plan.warnings,
+        errors,
     }
 }
 
@@ -186,21 +303,27 @@ pub fn format_analyze_json(
     profile: &HostProfile,
     plan: &OptimizationPlan,
     host_preview: Option<&HostTuningReport>,
-) -> String {
-    serde_json::to_string_pretty(&build_analyze_json_report(profile, plan, host_preview))
-        .unwrap_or_default()
+    errors: Vec<String>,
+) -> crate::error::Result<String> {
+    Ok(serde_json::to_string_pretty(&build_analyze_json_report(
+        profile,
+        plan,
+        host_preview,
+        errors,
+    ))?)
 }
 
 /// Renders `leandock status --format json` as pretty-printed JSON.
 pub fn format_status_json(
     containers: &[LiveContainerStat],
     kernel_stats: &KernelMemoryStats,
-) -> String {
-    serde_json::to_string_pretty(&StatusJsonReport {
-        containers,
+    errors: Vec<String>,
+) -> crate::error::Result<String> {
+    Ok(serde_json::to_string_pretty(&StatusJsonReport {
+        containers: containers.iter().map(ContainerJson::from).collect(),
         kernel: kernel_stats,
-    })
-    .unwrap_or_default()
+        errors,
+    })?)
 }
 
 /// Prints the zero-touch `leandock analyze` dry-run report.
@@ -636,6 +759,14 @@ pub fn format_benchmark_report(
 
 /// Queries live container stats via `docker stats --no-stream` / `podman stats --no-stream`.
 pub fn collect_live_container_stats(runtime_bin: &str) -> Vec<LiveContainerStat> {
+    try_collect_live_container_stats(runtime_bin).unwrap_or_default()
+}
+
+/// Like [`collect_live_container_stats`], but reports a failed `ps` query (runtime missing or daemon
+/// not reachable) as an error instead of an empty list.
+pub fn try_collect_live_container_stats(
+    runtime_bin: &str,
+) -> crate::error::Result<Vec<LiveContainerStat>> {
     let mut stats_map = std::collections::HashMap::new();
     if let Ok(out) = Command::new(runtime_bin)
         .args([
@@ -660,45 +791,49 @@ pub fn collect_live_container_stats(runtime_bin: &str) -> Vec<LiveContainerStat>
     }
 
     let mut rows = Vec::new();
-    if let Ok(out) = Command::new(runtime_bin)
+    let out = Command::new(runtime_bin)
         .args(["ps", "-a", "--format", "{{.Names}}|{{.State}}|{{.Labels}}"])
         .output()
-    {
-        if out.status.success() {
-            for line in String::from_utf8_lossy(&out.stdout).lines() {
-                let parts: Vec<&str> = line.splitn(3, '|').collect();
-                if parts.len() < 3 {
-                    continue;
-                }
-                let name = parts[0].trim().to_string();
-                let state = parts[1].trim().to_string();
-                let labels = parts[2];
-                let idle_enabled = labels.contains("leandock.idle.enable=true");
-                let idle_mode = if !idle_enabled {
-                    "Always-On".to_string()
-                } else if state.eq_ignore_ascii_case("running") {
-                    "Wake Proxy: Active".to_string()
-                } else {
-                    "Wake Proxy: Sleeping (0 MB)".to_string()
-                };
-
-                let (cpu, mem) = stats_map
-                    .get(&name)
-                    .cloned()
-                    .unwrap_or_else(|| ("0.00%".to_string(), "0B / 0B".to_string()));
-
-                rows.push(LiveContainerStat {
-                    name,
-                    state,
-                    cpu_percent: cpu,
-                    mem_usage: mem,
-                    idle_mode,
-                });
-            }
+        .map_err(|_| crate::error::LeanDockError::RuntimeNotFound)?;
+    if !out.status.success() {
+        return Err(crate::error::LeanDockError::CommandFailed {
+            cmd: format!("{runtime_bin} ps -a"),
+            code: out.status.code(),
+            stderr: String::from_utf8_lossy(&out.stderr).trim().to_string(),
+        });
+    }
+    for line in String::from_utf8_lossy(&out.stdout).lines() {
+        let parts: Vec<&str> = line.splitn(3, '|').collect();
+        if parts.len() < 3 {
+            continue;
         }
+        let name = parts[0].trim().to_string();
+        let state = parts[1].trim().to_string();
+        let labels = parts[2];
+        let idle_enabled = labels.contains("leandock.idle.enable=true");
+        let idle_mode = if !idle_enabled {
+            "Always-On".to_string()
+        } else if state.eq_ignore_ascii_case("running") {
+            "Wake Proxy: Active".to_string()
+        } else {
+            "Wake Proxy: Sleeping (0 MB)".to_string()
+        };
+
+        let (cpu, mem) = stats_map
+            .get(&name)
+            .cloned()
+            .unwrap_or_else(|| ("0.00%".to_string(), "0B / 0B".to_string()));
+
+        rows.push(LiveContainerStat {
+            name,
+            state,
+            cpu_percent: cpu,
+            mem_usage: mem,
+            idle_mode,
+        });
     }
 
-    rows
+    Ok(rows)
 }
 
 fn support_cell(support: CapabilitySupport) -> Cell {
